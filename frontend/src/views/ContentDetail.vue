@@ -1,1 +1,25 @@
-<template><div class="detail-page content-width"><RouterLink to="/" class="back-link">← 返回内容库</RouterLink><div class="detail-layout"><article><p class="eyebrow">FIELD NOTE / 024 · ARTICLE</p><h1>写给长期主义者的<br><em>一封信</em></h1><p class="detail-lede">我们总是在寻找更快的方法，却很少问自己：什么值得被坚持得更久一点？</p><div class="article-body"><p>真正有复利的事情，往往在最开始看不到明显的结果。写作、阅读、做产品、建立关系，都是这样。</p><p>ContentHub 希望记录这些慢变量。它们不喧哗，却会在某一个时间点，成为你回头看时最感谢自己的选择。</p><blockquote>“长期不是一种时间长度，而是一种看待当下的方式。”</blockquote></div></article><aside class="detail-aside"><div class="aside-cover theme-orange">FIELD<br><strong>NOTE</strong><br><small>024</small></div><div class="author-box"><span class="avatar">LY</span><div><strong>Lin Yu</strong><small>写作者 / 产品人</small></div></div><el-button class="button button-dark full-button">订阅后阅读全文 <span>↗</span></el-button><p class="aside-note">加入作者的订阅计划，解锁全部 24 篇内容。</p></aside></div></div></template>
+<template><div class="detail-page content-width"><RouterLink to="/" class="back-link">← 返回内容库</RouterLink><div v-if="loading" class="empty-state">正在加载内容…</div><div v-else-if="error" class="empty-state">{{ error }}</div><div v-else class="detail-layout"><article><p class="eyebrow">{{ contentType }} · CONTENT</p><h1>{{ content.title }}</h1><p class="detail-lede">{{ content.summary }}</p><div class="article-body"><p v-for="(paragraph, index) in paragraphs" :key="index">{{ paragraph }}</p></div></article><aside class="detail-aside"><div class="aside-cover theme-orange">CONTENT<br><strong>NOTE</strong><br><small>#{{ content.id }}</small></div><div class="author-box"><span class="avatar">C</span><div><strong>ContentHub Creator</strong><small>数字内容创作者</small></div></div><el-button class="button button-dark full-button">{{ content.accessType === 'FREE' ? '立即阅读' : '订阅后阅读全文' }} <span>↗</span></el-button><p class="aside-note">{{ content.accessType === 'FREE' ? '这份内容当前开放免费阅读。' : '加入作者的订阅计划，解锁完整内容。' }}</p></aside></div></div></template>
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { getContent } from '../api/content'
+
+const route = useRoute()
+const loading = ref(true)
+const error = ref('')
+const content = ref(null)
+const contentType = computed(() => content.value?.contentType || 'FIELD NOTE')
+const paragraphs = computed(() => (content.value?.body || content.value?.summary || '').split(/\n+/).filter(Boolean))
+
+onMounted(async () => {
+  try {
+    const response = await getContent(route.params.id)
+    if (!response.data.success) throw new Error(response.data.message || '内容不存在')
+    content.value = response.data.data
+  } catch (e) {
+    error.value = e.message || '内容加载失败，请稍后重试。'
+  } finally {
+    loading.value = false
+  }
+})
+</script>

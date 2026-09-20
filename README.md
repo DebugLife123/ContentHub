@@ -62,3 +62,28 @@ npm run dev
 \\\
 
 访问 [http://127.0.0.1:5175](http://127.0.0.1:5175) ，API 文档 [http://127.0.0.1:8084/doc.html](http://127.0.0.1:8084/doc.html)
+## 当前开发进度（2026-09-20）
+
+已完成第一条可运行业务链路：
+
+- MySQL `contents` 内容表已接入 MyBatis-Plus；
+- 后端提供 `GET /contents` 内容列表接口；
+- 后端提供 `GET /contents/{id}` 内容详情接口；
+- 首页内容卡片已从后端读取已发布内容；
+- 内容详情页已从后端读取正文、访问类型和统计数据；
+- 数据库脚本包含 3 条演示内容。
+
+接口快速验证：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8084/contents | ConvertTo-Json -Depth 5
+Invoke-RestMethod http://127.0.0.1:8084/contents/1 | ConvertTo-Json -Depth 5
+```
+
+下一步建议按这个顺序推进：
+
+1. 创作者内容发布/编辑/下架；
+2. 订阅套餐和订阅权限；
+3. 收藏、评论、阅读量统计；
+4. 创作者数据看板从静态数据切换为真实接口；
+5. Redis 接入浏览量与热门内容缓存。

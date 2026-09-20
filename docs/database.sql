@@ -155,4 +155,12 @@ INSERT INTO `users` (`username`,`password`,`nickname`,`role`) VALUES
 INSERT INTO `creator_profiles` (`user_id`,`display_name`,`intro`,`verified`) VALUES
 (2, '示例创作者', '分享前端 / Java / AI 实用教程', 1);
 
+-- ----------------------------
+-- 初始内容数据
+-- ----------------------------
+INSERT INTO `contents` (`creator_id`,`title`,`summary`,`cover`,`content_type`,`body`,`access_type`,`status`,`view_count`,`like_count`) VALUES
+(2, '一个独立开发者的产品实验室', '从想法到上线，记录每一次真实的产品决策。', NULL, 'COLUMN', '# 产品实验室\n\n从想法到上线，记录每一次真实的产品决策。', 'SUBSCRIBED', 'PUBLISHED', 1280, 128),
+(2, 'AI 工作流 Prompt 图鉴', '把重复工作交给 AI，把时间还给真正重要的事。', NULL, 'PROMPT', '# Prompt Atlas\n\n42 个可以直接复用的工作流模板。', 'SUBSCRIBED', 'PUBLISHED', 860, 86),
+(2, '全栈项目启动模板 2.0', '开箱即用的工程底座，专为快速验证想法而生。', NULL, 'CODE', '# Ship Faster\n\nVue 3 + Spring Boot 全栈项目启动模板。', 'FREE', 'PUBLISHED', 2140, 214);
 SET FOREIGN_KEY_CHECKS = 1;
+
