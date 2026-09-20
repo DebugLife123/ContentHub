@@ -1,0 +1,29 @@
+### Java ###
+target/
+*.class
+*.jar.original
+.settings/
+.classpath
+.project
+.idea/
+*.iml
+
+### Node ###
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+### Logs ###
+logs/
+*.log
+
+### OS ###
+.DS_Store
+Thumbs.db
+
+### Env ###
+.env
+.env.local
+.env.*.local
