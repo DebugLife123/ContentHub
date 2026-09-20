@@ -39,7 +39,7 @@ ContentHub/
 | 前端 Dev | 5175 |
 | MySQL (Docker) | 3307 → 3306 |
 
-## 快速启动
+## 当前状态\n\n第一阶段底座已完成：后端已复制并改造成 `com.contenthub` 多模块工程，数据库已创建 ContentHub 核心表，前端已改造成 ContentHub 内容订阅平台首页、登录页、内容详情页和创作者工作台。\n\n演示账号：`creator / 123456`。\n\n详细搭建步骤见 [docs/SETUP.md](docs/SETUP.md)。\n\n## 快速启动
 
 ### 1. 初始化数据库
 \\\ash
