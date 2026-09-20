@@ -22,3 +22,17 @@ spring:
     user:
       name: admin
       password: 123456
+
+  # Redis（Spring Boot 3 起配置前缀由 spring.redis 变为 spring.data.redis）
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6379
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+          max-wait: 3000ms

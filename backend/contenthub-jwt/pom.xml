@@ -14,9 +14,6 @@
     <name>contenthub-jwt</name>
     <description>contenthub-jwt(JWT 模块，管理用户认证、鉴权)</description>
 
-    <properties>
-        <java.version>8</java.version>
-    </properties>
     <dependencies>
         <!--通用模块-->
         <dependency>

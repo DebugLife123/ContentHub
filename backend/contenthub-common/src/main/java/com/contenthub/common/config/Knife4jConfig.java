@@ -1,52 +1,46 @@
 package com.contenthub.common.config;
 
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
-import springfox.documentation.builders.ApiInfoBuilder;
-import springfox.documentation.builders.PathSelectors;
-import springfox.documentation.builders.RequestHandlerSelectors;
-import springfox.documentation.service.ApiInfo;
-import springfox.documentation.service.Contact;
-import springfox.documentation.spi.DocumentationType;
-import springfox.documentation.spring.web.plugins.Docket;
-import springfox.documentation.swagger2.annotations.EnableSwagger2WebMvc;
 
 /**
- * @author newone
- * @date 2023/11/14
- * @description: Knife4j 配置
+ * Knife4j / springdoc-openapi 配置。
+ *
+ * <p>Spring Boot 3 起 springfox 不再兼容，改用 springdoc-openapi 2.x；
+ * 原 {@code Docket} + {@code @EnableSwagger2WebMvc} 的写法替换为
+ * {@link OpenAPI} + {@link GroupedOpenApi}。</p>
+ *
+ * <p>文档地址：{@code http://127.0.0.1:8084/doc.html}</p>
  */
 @Configuration
-@EnableSwagger2WebMvc
 @Profile("dev") // 只在 dev 环境中开启
 public class Knife4jConfig {
 
-    @Bean("webApi")
-    public Docket createApiDoc() {
-        Docket docket = new Docket(DocumentationType.SWAGGER_2)
-                .apiInfo(buildApiInfo())
-                // 分组名称
-                .groupName("Web 前台接口")
-                .select()
-                // 这里指定 Controller 扫描包路径
-                .apis(RequestHandlerSelectors.basePackage("com.contenthub.web.controller"))
-                .paths(PathSelectors.any())
-                .build();
-        return docket;
+    /**
+     * 全局 API 文档信息（只需定义一次）
+     */
+    @Bean
+    public OpenAPI contentHubOpenAPI() {
+        return new OpenAPI().info(new Info()
+                .title("ContentHub 接口文档")
+                .description("ContentHub 是一个数字内容订阅与创作者平台：创作者发布内容 → 用户订阅 → 按订阅获得访问权限 → 阅读/观看/下载 → 产生互动。")
+                .contact(new Contact().name("ContentHub").url("https://github.com/").email("contenthub@example.com"))
+                .version("1.0"));
     }
 
     /**
-     * 构建 API 信息
-     * @return
+     * Web 前台接口分组
      */
-    private ApiInfo buildApiInfo() {
-        return new ApiInfoBuilder()
-                .title("Mall 购物商城前台接口文档") // 标题
-                .description("Mall 是一款由 Spring Boot + Vue 3.2 + Vite 4.3 开发的前后端分离购物商城。") // 描述
-                .termsOfServiceUrl("https://www.newonehow.com/") // API 服务条款
-                .contact(new Contact("NewOne", "https://www.newonehow.com", "howonenew@163.com")) // 联系人
-                .version("1.0") // 版本号
+    @Bean
+    public GroupedOpenApi webApi() {
+        return GroupedOpenApi.builder()
+                .group("Web 前台接口")
+                .packagesToScan("com.contenthub.web.controller")
                 .build();
     }
 }

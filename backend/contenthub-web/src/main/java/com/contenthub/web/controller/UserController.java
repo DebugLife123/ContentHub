@@ -3,26 +3,28 @@ package com.contenthub.web.controller;
 import com.contenthub.common.aspect.ApiOperationLog;
 import com.contenthub.common.utils.Response;
 import com.contenthub.web.service.UserService;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@Tag(name = "用户与认证")
 public class UserController {
     @Autowired
     private UserService userService;
 
     @PostMapping("/user/info")
-    @ApiOperation(value = "获取用户信息")
+    @Operation(summary = "获取用户信息")
     @ApiOperationLog(description = "获取用户信息")
     public Response findUserInfo() {
         return userService.findUserInfo();
     }
 
     @PostMapping("/register")
-    @ApiOperation(value = "用户注册")
+    @Operation(summary = "用户注册")
     @ApiOperationLog(description = "用户注册")
     public Response registerUser(@RequestParam String username, @RequestParam String password, @RequestParam String confirmPassword) {
         if (!password.equals(confirmPassword)) {

@@ -33,10 +33,10 @@
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- knife4j -->
+		<!-- knife4j (Jakarta EE / Spring Boot 3) -->
 		<dependency>
 			<groupId>com.github.xiaoymin</groupId>
-			<artifactId>knife4j-openapi2-spring-boot-starter</artifactId>
+			<artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
 		</dependency>
 		<!-- Spring Security -->
 		<dependency>

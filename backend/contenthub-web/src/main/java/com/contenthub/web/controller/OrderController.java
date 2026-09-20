@@ -5,7 +5,7 @@ import com.contenthub.common.domain.dos.OrderDO;
 import com.contenthub.common.utils.Response;
 import com.contenthub.common.domain.vo.OrderProductVO;
 import com.contenthub.web.service.OrderService;
-import io.swagger.annotations.ApiOperation;
+import io.swagger.v3.oas.annotations.Operation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -19,7 +19,7 @@ public class OrderController {
     @Autowired
     private OrderService orderService;
 
-    @ApiOperation("添加订单")
+    @Operation(summary = "添加订单")
     @ApiOperationLog(description = "添加订单")
     @PostMapping("/addOrders")
     public Response addOrders(@RequestBody List<OrderDO> orderList){
@@ -35,7 +35,7 @@ public class OrderController {
         }
     }
 
-    @ApiOperation("获取订单信息")
+    @Operation(summary = "获取订单信息")
     @ApiOperationLog(description = "获取订单信息")
     @GetMapping("/getOrders/{userId}")
     public Response getOrders(@PathVariable Integer userId) {
