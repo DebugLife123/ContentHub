@@ -42,9 +42,16 @@ ContentHub/
 │   ├── contenthub-jwt/          # JWT 认证模块：登录过滤器 / Token
 │   ├── contenthub-admin/        # 管理端配置：Security 配置
 │   └── contenthub-web/          # Web 启动模块：Controller / Service + 配置
-├── frontend/                    # Vue3 + Vite 前端
+├── frontend/                    # Vue3 + TypeScript + Vite 前端
 ├── docs/
-│   └── database.sql             # 数据库建表脚本 + 演示数据
+│   └── database.sql             # 数据库建表脚本 + 演示数据（同时作为 MySQL 容器初始化脚本）
+├── scripts/                     # 本地开发启停脚本
+│   ├── _common.ps1              # 公共函数（原生命令调用、端口探测、等待）
+│   ├── dev-up.ps1               # 拉起容器 + 后端 + 前端
+│   ├── dev-down.ps1             # 停止后端 / 前端
+│   ├── dev-status.ps1           # 状态总览
+│   └── register-autostart.ps1   # 注册 / 卸载登录自启任务
+├── docker-compose.yml           # ContentHub 专属 MySQL(3308) + Redis(6380)
 ├── ContentHub_开发指导计划.docx  # 开发路线的唯一依据
 └── README.md
 ```
@@ -159,46 +166,90 @@ ContentHub/
 
 当前开发机实际版本：JDK 17.0.10、Maven 3.9.14、Node.js 22.19.0、npm 10.9.3、MySQL 8.0、Redis 7。
 
-数据库复用本机已有的 Docker MySQL 容器 `springboot-mall-mysql`（容器内 3306，映射到本机 3307）。
+MySQL 与 Redis 由 ContentHub **自己的** `docker-compose.yml` 提供，不再复用其他项目的容器。
 
 ## 端口约定
 
-| 服务 | 端口 |
-|---|---|
-| 后端 API | 8084 |
-| 前端 Dev | 5175 |
-| MySQL (Docker) | 3307 → 3306 |
-| Redis | 6379（已接入，容器 `educheck-redis`） |
+| 服务 | 端口 | 归属 |
+|---|---|---|
+| 后端 API | 8084 | 宿主机进程 |
+| 前端 Dev | 5175 | 宿主机进程 |
+| MySQL | 3308 → 3306 | 容器 `contenthub-mysql` |
+| Redis | 6380 → 6379 | 容器 `contenthub-redis` |
+
+端口刻意避开本机其他项目（`springboot-mall` 占用 3307、`educheck` 占用 6379），互不干扰。
 
 ## 快速启动
 
-### 1. 初始化数据库
+一条命令拉起全部依赖（幂等，可反复执行）：
 
 ```powershell
-Get-Content .\docs\database.sql | docker exec -i springboot-mall-mysql mysql -uroot -p123456
+.\scripts\dev-up.ps1
 ```
 
-### 2. 启动后端
+它会依次：`docker compose up -d` 启动 MySQL/Redis → 等两者就绪 → 后端源码比 jar 新时自动 `mvn package` → 启动后端 8084 → 启动前端 5175。
+
+### 其他脚本
+
+| 脚本 | 用途 |
+|---|---|
+| `scripts\dev-up.ps1` | 拉起全部服务（`-Restart` 先停再起；`-Rebuild` 强制重打包；`-NoBackend` / `-NoFrontend` 跳过） |
+| `scripts\dev-down.ps1` | 停止后端与前端（默认保留容器；`-WithContainers` 一并停容器） |
+| `scripts\dev-status.ps1` | 查看容器、端口、接口与自启任务状态，并附带最近日志 |
+| `scripts\register-autostart.ps1` | 注册 / 卸载「登录时自启」计划任务（`-Remove` 卸载） |
+
+> **维护脚本时注意**：这些 `.ps1` 必须保存为 **UTF-8 带 BOM**。Windows PowerShell 5.1（计划任务默认用它）会把无 BOM 的 UTF-8 文件按系统 ANSI（本机为 GBK）解码，导致中文乱码甚至语法错误。
+> 另外脚本内调用 `docker` / `mvn` 等原生命令统一走 `_common.ps1` 的 `Invoke-External`：5.1 下若 `$ErrorActionPreference='Stop'`，原生命令写到 stderr 的正常进度输出会被当成终止错误抛出（`docker compose up -d` 就会触发）。
+
+### 开机自启
+
+已注册计划任务 `ContentHub Dev Up`（当前用户、登录后 30 秒触发、`Limited` 运行级别，不需要管理员权限），登录后自动执行 `dev-up.ps1`。
 
 ```powershell
+# 立即试运行一次
+Start-ScheduledTask -TaskName "ContentHub Dev Up"
+# 查看状态
+.\scripts\dev-status.ps1
+# 卸载自启
+.\scripts\register-autostart.ps1 -Remove
+```
+
+若要在 IDEA 里跑后端，先释放 8084 以免端口冲突：
+
+```powershell
+.\scripts\dev-down.ps1          # 停掉脚本起的后端与前端，容器保持运行
+# 然后在 IDEA 里 Run
+# 之后想恢复脚本托管：
+.\scripts\dev-up.ps1
+```
+
+### 手动启动（不使用脚本时）
+
+```powershell
+# 1. 基础设施
+docker compose up -d
+
+# 2. 后端
 cd .\backend
 mvn -DskipTests package
 java -jar .\contenthub-web\target\contenthub-web-0.0.1-SNAPSHOT.jar
-```
 
-后端地址 `http://127.0.0.1:8084`，API 文档 `http://127.0.0.1:8084/doc.html`
-
-### 3. 启动前端
-
-```powershell
+# 3. 前端
 cd .\frontend
 npm install
 npm run dev -- --host 127.0.0.1
 ```
 
-前端地址 `http://127.0.0.1:5175`，Vite 会把 `/api/*` 代理到 `http://127.0.0.1:8084/*`。
+后端地址 `http://127.0.0.1:8084`，API 文档 `http://127.0.0.1:8084/doc.html`，前端 `http://127.0.0.1:5175`（Vite 将 `/api/*` 代理到 `http://127.0.0.1:8084/*`）。
 
-### 4. Redis 连通性验收（阶段 0）
+数据库无需手动初始化：`docs/database.sql` 已挂载到 MySQL 容器的 `/docker-entrypoint-initdb.d/`，首次创建数据卷时自动建表并写入演示数据。要重置数据库：
+
+```powershell
+docker compose down -v      # 连同数据卷一起删除
+docker compose up -d        # 重新初始化
+```
+
+### Redis 连通性验收（阶段 0）
 
 ```powershell
 # 先登录拿 token，再用 token 访问验收接口
@@ -208,12 +259,12 @@ Invoke-RestMethod http://127.0.0.1:8084/admin/redis/verify `
   -Headers @{ Authorization = "Bearer $($login.data.token)" } | ConvertTo-Json
 
 # 直接在 Redis 中确认 key 存在且是明文
-docker exec educheck-redis redis-cli get "contenthub:stage0:ping"
+docker exec contenthub-redis redis-cli get "contenthub:stage0:ping"
 ```
 
 预期 `matched` 为 `true`，且 `redis-cli` 能读到明文的 `pong@...` 值。
 
-### 5. 接口快速验证
+### 接口快速验证
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8084/contents | ConvertTo-Json -Depth 5
