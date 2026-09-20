@@ -1,35 +1,165 @@
 # ContentHub · 数字内容订阅与创作者平台
 
-> 基于 Spring Boot 2.6 + Vue 3 + Vite 4 的全栈开源脚手架。
+> 创作者发布数字内容 → 用户订阅 → 根据订阅获得内容权限 → 阅读/观看/下载 → 产生互动。
+>
+> 开发路线、阶段划分与技术选型一律以根目录 `ContentHub_开发指导计划.docx` 为准，本 README 只做两件事：说明启动方式，记录与计划对齐的当前进度。
 
-## 核心业务
+## 项目定位
 
-\\\
-创作者 → 发布数字内容 → 创建订阅套餐 → 用户订阅 → 获得内容访问权限
-                                                       ↓ 收藏 / 评论 / 阅读
-                                                  创作者查看数据
-\\\
+ContentHub 不是一个普通"卖电子书"的商城，而是一个"创作者发布数字内容 → 用户订阅 → 根据订阅获得内容权限 → 阅读/观看/下载 → 产生互动"的小型内容平台。
 
-支持内容形态：技术文章 / 系列教程 / 电子书 / 视频课程 / PDF / 代码模板 / Prompt / 数据集 / 专栏
+真正要练的不是 CRUD，而是完整业务链：用户是谁、内容是谁发布的、订阅了什么、订阅后能看什么、哪些内容免费、哪些内容需要权限、热门内容怎么统计，以及这些数据怎样落到 MySQL 和 Redis。
 
-## 技术栈
+支持内容形态：文章 / PDF / 视频链接 / 代码模板 / Prompt 等数字内容。
 
-**后端**：Spring Boot 2.6 · MyBatis-Plus · Spring Security + JWT · MySQL 8 · Knife4j(API文档) · Maven 多模块
-**前端**：Vue 3 · Vite 4 · Vue Router 4 · Pinia · Axios · Element Plus · Tailwind CSS
+## 业务主线（计划 §6）
+
+| 业务 | 流程 |
+|---|---|
+| 注册登录 | 注册 → 密码加密保存 → 登录 → JWT → Redis 保存 token → 前端保存登录状态 |
+| 发布内容 | 创作者登录 → 填写内容 → 保存草稿 → 发布 → 管理员审核 → 上线 |
+| 订阅 | 用户查看套餐 → 选择套餐 → 模拟支付 → 创建订阅 → 计算到期时间 → 获得访问权限 |
+| 访问内容 | 请求内容 → 判断免费/付费 → 判断用户是否有有效订阅 → 有权限才返回正文/下载地址 |
+
+## 技术栈（计划 §3 表 2）
+
+| 部分 | 计划技术 | 当前状态 |
+|---|---|---|
+| 前端 | Vue 3 + TypeScript + Vite | ✅ Vue 3 + **TypeScript 5.9** + Vite 4，`vue-tsc` 类型检查已接入构建 |
+| 前端状态 | Pinia + Axios + Element Plus | ✅ 已就绪，Pinia 持久化插件已注册 |
+| 后端 | Java 17 + Spring Boot 3 | ✅ **Java 17 + Spring Boot 3.2.5** |
+| 数据库 | MySQL + MyBatis-Plus | ✅ 已就绪（`contenthub` 库 @3307，MyBatis-Plus 3.5.5） |
+| 权限 | Spring Security + JWT | 🟡 JWT 登录链路已通；Redis 持久化 token 与角色授权未做（阶段 2） |
+| 缓存 | Redis | ✅ 已接入（`spring.data.redis`，127.0.0.1:6379） |
+| 部署 | Docker + Nginx | ⬜ 未开始（阶段 7） |
 
 ## 目录结构
 
-\\\
+```text
 ContentHub/
-├── backend/                 # Spring Boot 多模块后端
-│   ├── contenthub-common/   # 公共模块：DO/Mapper/枚举/异常/工具类
-│   ├── contenthub-jwt/      # JWT 认证模块：登录过滤器/Token
-│   ├── contenthub-admin/    # 管理端配置：Security 配置
-│   └── contenthub-web/      # Web 启动模块：Controller/Service + 配置文件
-├── frontend/                # Vue3 + Vite 前端
-└── docs/                    # 项目文档
-    └── database.sql         # 数据库建表脚本
-\\\
+├── backend/                     # Spring Boot 多模块后端
+│   ├── contenthub-common/       # DO / Mapper / 枚举 / 异常 / 工具类
+│   ├── contenthub-jwt/          # JWT 认证模块：登录过滤器 / Token
+│   ├── contenthub-admin/        # 管理端配置：Security 配置
+│   └── contenthub-web/          # Web 启动模块：Controller / Service + 配置
+├── frontend/                    # Vue3 + Vite 前端
+├── docs/
+│   └── database.sql             # 数据库建表脚本 + 演示数据
+├── ContentHub_开发指导计划.docx  # 开发路线的唯一依据
+└── README.md
+```
+
+## 当前进度（按计划 §10 表 9 的阶段口径）
+
+| 阶段 | 天数 | 主要成果 | 状态 |
+|---|---|---|---|
+| 阶段 0 | Day 1-4 | 环境、Git、项目骨架、数据库连接 | ✅ 已完成 |
+| 阶段 1 | Day 5-12 | Vue3 基础 + 用户/分类/内容基础 CRUD | 🟡 进行中 |
+| 阶段 2 | Day 13-19 | Spring Security + JWT + Redis 登录权限 | 🟡 部分完成（仅脚手架继承部分） |
+| 阶段 3 | Day 20-29 | 内容中心：发布、详情、审核、权限访问 | ⬜ 未开始 |
+| 阶段 4 | Day 30-38 | 套餐、订阅、模拟支付、订阅到期 | ⬜ 未开始 |
+| 阶段 5 | Day 39-47 | Redis 缓存、热门、搜索、收藏、评论、历史 | ⬜ 未开始 |
+| 阶段 6 | Day 48-55 | 创作者中心 + 管理后台 | ⬜ 未开始 |
+| 阶段 7 | Day 56-60 | 联调、异常处理、Docker、Nginx、部署 | ⬜ 未开始 |
+| 可选升级 | Day 61-70 | Spring AI / RAG / AI 内容助手 | ⬜ 未开始 |
+
+**结论：阶段 0 已完成并通过验收；当前处于「阶段 1 中段」，约合计划的 Day 8-10。**
+
+### 阶段 0 已完成（含验收方式）
+
+计划阶段 0 的四条验收标准全部满足：
+
+| 计划验收标准 | 状态 | 验证方式 |
+|---|---|---|
+| 能启动后端并访问一个 hello API | ✅ | `POST /admin/test`（需登录） |
+| 能启动前端并显示首页 | ✅ | `http://127.0.0.1:5175` |
+| 后端能连 MySQL | ✅ | `GET /contents` 返回 3 条种子数据 |
+| 后端能连 Redis | ✅ | `GET /admin/redis/verify`，并在 `redis-cli` 中查到明文 key |
+
+本轮完成的技术栈对齐（计划 §3 表 2）：
+
+- **Spring Boot 2.6.3 → 3.2.5**，`java.version` 8 → 17；
+- **springfox → springdoc-openapi 2.3.0**（Knife4j 换用 `knife4j-openapi3-jakarta-spring-boot-starter` 4.5.0），原 `Docket`/`@EnableSwagger2WebMvc` 重写为 `OpenAPI` + `GroupedOpenApi`；
+- **MyBatis-Plus** `mybatis-plus-boot-starter` 3.5.2 → `mybatis-plus-spring-boot3-starter` 3.5.5；
+- **MySQL 驱动** `mysql:mysql-connector-java` → `com.mysql:mysql-connector-j`；
+- **`javax.*` → `jakarta.*`**：24 处（servlet 16 处、validation 3 处等），`JwtTokenHelper` 中 JDK 自带的 `javax.security.auth.login` 保持不变；
+- **Spring Security 6**：移除已删除的 `WebSecurityConfigurerAdapter`，改为 `SecurityFilterChain` Bean + Lambda DSL，`mvcMatchers` → `requestMatchers`；
+- **Redis 接入**：`spring.data.redis` 配置（Boot 3 前缀）、`RedisConfig`（key 用 String、value 用 JSON，便于 `redis-cli` 观察）、补充 `StringRedisTemplate`；
+- **前端 TypeScript**：`typescript` 5.9 + `vue-tsc`，`tsconfig.json`（`strict`，`allowJs` 渐进迁移），`vite.config.ts`，`npm run build` 已串入类型检查；核心模块 `axios` / `router` / `stores` / `composables` / `api` / `utils` 及 4 个 ContentHub 页面均已迁移为 TS。
+
+### 阶段 0 遗留说明
+
+- `contenthub-admin` 的 `JwtAuthenticationSecurityConfig` 仍使用 `SecurityConfigurerAdapter` + `http.apply()`，编译通过但有「已废弃并标记删除」告警。建议在阶段 2 重写认证与角色授权时一并改为显式注册 `AuthenticationProvider` / filter Bean；
+- 旧商城的 `Cart` / `Order` / `Product` 模块未删除，属于阶段 1 的清理范围。其中 `OrderProductVO` 被 MyBatis-Plus 误当作实体扫描，启动时会打印两条 `Can not find table primary key` 警告，随阶段 1 清理一并消失；
+- `GET /admin/redis/verify` 是阶段 0 的验收用临时接口，阶段 2 落地真实 Redis 业务后应删除。
+
+### 阶段 1 已完成
+
+- `users`、`contents` 表 + `UserDO` / `ContentDO` + Mapper；
+- 注册接口 `POST /register`（校验两次密码一致，密码用 BCrypt 加密后入库）；
+- 内容列表 `GET /contents`（支持 `contentType` 筛选）、内容详情 `GET /contents/{id}`，仅返回 `PUBLISHED` 内容；
+- 首页与内容详情页已改为从后端读取真实数据；
+- 统一返回 `Response` 与全局异常处理 `GlobalExceptionHandler`。
+
+### 阶段 1 未完成
+
+- **分类模块整体缺失**：计划表 6 中标记为"必须"的 `content_category` 表未建，无任何分类代码；
+- **内容 CRUD 缺失**：只有两个 GET，无新增 / 编辑 / 删除 / 下架；
+- **分页缺失**：列表直接 `selectList` 返回全量，未使用 MyBatis-Plus 分页；
+- 参数校验、DTO/VO 分层未覆盖内容模块；
+- 旧商城模块未替换：`Cart` / `Order` / `Product` 的 DO、Mapper、Controller、Service 全部仍在；
+- 尚未打 Git tag `v0.1`（计划 Day 12 的里程碑）。
+
+### 阶段 2 已完成
+
+- JWT 生成与解析、Spring Security 配置、BCrypt 密码编码、`POST /login` 登录链路可用；
+- `users.role` 字段与 `USER` / `CREATOR` / `ADMIN` 三角色种子数据已就绪。
+
+### 阶段 2 未完成
+
+- **token 未写入 Redis**（计划 Day 16 的核心），当前 token 只存在于 JWT 本身，前端存 `localStorage`；
+- **角色授权未做**：`WebSecurityConfig` 只保护 `/admin/**`，其余为 `anyRequest().permitAll()`，未按 USER / CREATOR / ADMIN 区分；
+- 前端无路由守卫，`stores/user.js` 与 `composables/auth.js` 未接入登录流程；
+- 缺少登出接口。
+
+### 阶段 3 及以后
+
+均未开始。已建表但**尚无对应代码**的有：`creator_profiles`、`subscription_plans`、`subscriptions`、`favorites`、`comments`。
+
+`CreatorDashboard.vue` 目前是纯静态假数据，不是真实接口。计划表 6 中的 `content_category`（必须）与 `reading_history`（建议）两张表尚未创建。
+
+## 已实现接口
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/login` | 登录，返回 JWT（计划中的 `/api/auth/login`） |
+| POST | `/register` | 注册（计划中的 `/api/auth/register`） |
+| POST | `/user/info` | 获取当前用户信息 |
+| GET | `/contents` | 查询已发布内容，可用 `?contentType=PROMPT` 筛选 |
+| GET | `/contents/{id}` | 查询单篇已发布内容 |
+| POST | `/admin/test` | 脚手架自带的 hello 接口，需登录 |
+| GET | `/admin/redis/verify` | **阶段 0 验收用**：写一个带 TTL 的 key 再读回，确认 Redis 连通 |
+
+> 计划表 19 约定的接口前缀是 `/api/*`，当前实现尚未统一加上 `/api` 前缀，也未提供 `/api/auth/logout`。
+> 前端 Vite 已配置 `/api` → `http://localhost:8084` 并去掉前缀，因此浏览器侧通过 `/api/contents` 访问。
+
+## 演示账号
+
+三个角色账号均已写入 `docs/database.sql`，密码统一为 `123456`（计划 §16 要求至少准备普通用户、创作者、管理员三个账号）：
+
+| 用户名 | 角色 |
+|---|---|
+| `admin` | ADMIN |
+| `creator` | CREATOR |
+| `user` | USER |
+
+## 环境要求
+
+计划 §10 阶段 0 要求本机具备：JDK 17、Maven、MySQL、Redis、Node.js、Git、Docker。
+
+当前开发机实际版本：JDK 17.0.10、Maven 3.9.14、Node.js 22.19.0、npm 10.9.3、MySQL 8.0、Redis 7。
+
+数据库复用本机已有的 Docker MySQL 容器 `springboot-mall-mysql`（容器内 3306，映射到本机 3307）。
 
 ## 端口约定
 
@@ -38,52 +168,69 @@ ContentHub/
 | 后端 API | 8084 |
 | 前端 Dev | 5175 |
 | MySQL (Docker) | 3307 → 3306 |
+| Redis | 6379（已接入，容器 `educheck-redis`） |
 
-## 当前状态\n\n第一阶段底座已完成：后端已复制并改造成 `com.contenthub` 多模块工程，数据库已创建 ContentHub 核心表，前端已改造成 ContentHub 内容订阅平台首页、登录页、内容详情页和创作者工作台。\n\n演示账号：`creator / 123456`。\n\n详细搭建步骤见 [docs/SETUP.md](docs/SETUP.md)。\n\n## 快速启动
+## 快速启动
 
 ### 1. 初始化数据库
-\\\ash
-# 复用本机 Docker MySQL
-docker exec -i springboot-mall-mysql mysql -uroot -p123456 < docs/database.sql
-\\\
+
+```powershell
+Get-Content .\docs\database.sql | docker exec -i springboot-mall-mysql mysql -uroot -p123456
+```
 
 ### 2. 启动后端
-\\\ash
-cd backend
+
+```powershell
+cd .\backend
 mvn -DskipTests package
-java -jar contenthub-web/target/contenthub-web-0.0.1-SNAPSHOT.jar
-\\\
+java -jar .\contenthub-web\target\contenthub-web-0.0.1-SNAPSHOT.jar
+```
+
+后端地址 `http://127.0.0.1:8084`，API 文档 `http://127.0.0.1:8084/doc.html`
 
 ### 3. 启动前端
-\\\ash
-cd frontend
+
+```powershell
+cd .\frontend
 npm install
-npm run dev
-\\\
+npm run dev -- --host 127.0.0.1
+```
 
-访问 [http://127.0.0.1:5175](http://127.0.0.1:5175) ，API 文档 [http://127.0.0.1:8084/doc.html](http://127.0.0.1:8084/doc.html)
-## 当前开发进度（2026-09-20）
+前端地址 `http://127.0.0.1:5175`，Vite 会把 `/api/*` 代理到 `http://127.0.0.1:8084/*`。
 
-已完成第一条可运行业务链路：
+### 4. Redis 连通性验收（阶段 0）
 
-- MySQL `contents` 内容表已接入 MyBatis-Plus；
-- 后端提供 `GET /contents` 内容列表接口；
-- 后端提供 `GET /contents/{id}` 内容详情接口；
-- 首页内容卡片已从后端读取已发布内容；
-- 内容详情页已从后端读取正文、访问类型和统计数据；
-- 数据库脚本包含 3 条演示内容。
+```powershell
+# 先登录拿 token，再用 token 访问验收接口
+$login = Invoke-RestMethod http://127.0.0.1:8084/login -Method Post `
+  -Body '{"username":"creator","password":"123456"}' -ContentType 'application/json'
+Invoke-RestMethod http://127.0.0.1:8084/admin/redis/verify `
+  -Headers @{ Authorization = "Bearer $($login.data.token)" } | ConvertTo-Json
 
-接口快速验证：
+# 直接在 Redis 中确认 key 存在且是明文
+docker exec educheck-redis redis-cli get "contenthub:stage0:ping"
+```
+
+预期 `matched` 为 `true`，且 `redis-cli` 能读到明文的 `pong@...` 值。
+
+### 5. 接口快速验证
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8084/contents | ConvertTo-Json -Depth 5
 Invoke-RestMethod http://127.0.0.1:8084/contents/1 | ConvertTo-Json -Depth 5
 ```
 
-下一步建议按这个顺序推进：
+## 下一步（严格按计划的阶段顺序）
 
-1. 创作者内容发布/编辑/下架；
-2. 订阅套餐和订阅权限；
-3. 收藏、评论、阅读量统计；
-4. 创作者数据看板从静态数据切换为真实接口；
-5. Redis 接入浏览量与热门内容缓存。
+1. **收尾阶段 1（Day 5-12）**：建 `content_category` 表并给 `contents` 补 `category_id`，完成分类 CRUD；补齐内容新增/编辑/删除与分页查询（需先在 `MybatisPlusConfig` 装配 `PaginationInnerInterceptor`）；替换掉遗留的 Cart / Order / Product 商城模块；打通"分类 → 内容 → 详情"并打 tag `v0.1`。
+2. **阶段 2（Day 13-19）**：token 写入 Redis 并设置过期；落地 USER / CREATOR / ADMIN 角色授权；前端登录态与路由守卫；完成权限越权测试（顺带清理阶段 0 遗留的 `SecurityConfigurerAdapter` 废弃用法）。
+3. **阶段 3（Day 20-29）**：创作者资料、内容状态流转（DRAFT / PENDING / PUBLISHED / REJECTED / OFFLINE）、管理员审核、免费与付费内容的访问权限判断、收藏。
+4. **阶段 4（Day 30-38）**：订阅套餐、模拟支付、创建订阅并计算起止时间、访问内容时校验有效订阅、我的订阅页，打 tag `v0.2`。
+5. **阶段 5（Day 39-47）**：内容详情缓存、热门内容 ZSet、浏览量 INCR 与定时同步 MySQL、关键词搜索、评论、阅读历史。
+6. **阶段 6（Day 48-55）**：创作者仪表盘与内容管理、管理员用户/分类/内容/评论/套餐管理、前端按角色动态显示菜单。
+7. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、Docker 容器化、Docker Compose、Nginx 反向代理、部署、整理 README 与截图，打 tag `v1.0`。
+
+## 文档
+
+- `ContentHub_开发指导计划.docx` — 开发路线与阶段划分的唯一依据
+- `docs/database.sql` — 数据库建表脚本与演示数据
