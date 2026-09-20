@@ -4,8 +4,8 @@ spring:
   datasource:
     #  指定数据库驱动类
     driver-class-name: com.p6spy.engine.spy.P6SpyDriver
-    # 数据库连接信息
-    url: jdbc:p6spy:mysql://127.0.0.1:3307/contenthub?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&useSSL=false&zeroDateTimeBehavior=convertToNull&allowPublicKeyRetrieval=true
+    # 数据库连接信息（ContentHub 专属容器 contenthub-mysql，见根目录 docker-compose.yml）
+    url: jdbc:p6spy:mysql://127.0.0.1:3308/contenthub?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&useSSL=false&zeroDateTimeBehavior=convertToNull&allowPublicKeyRetrieval=true
     username: root
     password: 123456
     hikari: # 数据库连接池使用 Hikari
@@ -24,10 +24,11 @@ spring:
       password: 123456
 
   # Redis（Spring Boot 3 起配置前缀由 spring.redis 变为 spring.data.redis）
+  # ContentHub 专属容器 contenthub-redis，见根目录 docker-compose.yml
   data:
     redis:
       host: 127.0.0.1
-      port: 6379
+      port: 6380
       database: 0
       timeout: 3000ms
       lettuce:

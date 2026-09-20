@@ -1,0 +1,61 @@
+# ============================================================
+# ContentHub 本地开发基础设施
+#
+# 只包含 MySQL 与 Redis —— 它们才需要常驻和开机自启。
+# 后端（8084）与前端（5175）作为开发期应用，故意不放进容器：
+#   - 后端在 IDE 里跑，改完 Java 秒级生效，且不占用 8084 导致端口冲突
+#   - 前端 Vite dev server 需要 Windows 宿主机的 inotify 事件才能 HMR，
+#     放进容器会退化为轮询并让 node_modules 与宿主漂移
+#
+# 阶段 7（Day 56-60）会在此文件上扩展 backend + nginx 服务用于部署，
+# 届时前端容器里跑的是 `npm run build` 的静态产物 + Nginx，而不是 dev server。
+#
+# 端口刻意避开其他项目：
+#   springboot-mall 占用 3307 / educheck 占用 6379，这里用 3308 / 6380
+# ============================================================
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: contenthub-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      MYSQL_DATABASE: contenthub
+      TZ: Asia/Shanghai
+    ports:
+      - "3308:3306"
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - contenthub-mysql-data:/var/lib/mysql
+      # 首次初始化数据卷时自动执行，建表 + 写入演示数据
+      # 与手动执行的 `Get-Content docs\database.sql | docker exec -i ...` 等价
+      - ./docs/database.sql:/docker-entrypoint-initdb.d/01-database.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 40s
+
+  redis:
+    image: redis:7-alpine
+    container_name: contenthub-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - contenthub-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  contenthub-mysql-data:
+  contenthub-redis-data:
