@@ -9,17 +9,30 @@
     <section id="creators" class="creator-banner content-width"><div><p class="eyebrow">FOR CREATORS</p><h2>你的经验，<br><em>值得被订阅。</em></h2></div><p>不只是发布内容，而是建立一个属于你的、可持续成长的知识空间。用订阅连接真正认可你的人。</p><RouterLink class="circle-arrow" to="/creator">↗</RouterLink></section>
   </div>
 </template>
-<script setup>
+<script setup lang="ts">
 import { onMounted, ref } from 'vue'
-import { listContents } from '../api/content'
+import { listContents, type ContentItem } from '../api/content'
+
+interface ContentCard {
+  id: number
+  type: string
+  cover: string
+  theme: string
+  author: string
+  reading: string
+  title: string
+  summary: string
+  price: string
+  likes: string | number
+}
 
 const loading = ref(true)
-const cards = ref([])
+const cards = ref<ContentCard[]>([])
 const themes = ['theme-orange', 'theme-lilac', 'theme-ink', 'theme-yellow']
-const typeLabels = { ARTICLE: 'ARTICLE', TUTORIAL: 'TUTORIAL', EBOOK: 'EBOOK', VIDEO: 'VIDEO', PDF: 'PDF', CODE: 'CODE TEMPLATE', PROMPT: 'PROMPT KIT', DATASET: 'DATASET', COLUMN: 'SERIES' }
-const fallback = [{ id: 1, type: 'SERIES / 06 PARTS', cover: 'BUILD\nIN PUBLIC', theme: 'theme-orange', author: 'BY MIAO', reading: '更新于 2 天前', title: '一个独立开发者的产品实验室', summary: '从想法到上线，记录每一次真实的产品决策。', price: '订阅后阅读', likes: '128' }, { id: 2, type: 'PROMPT KIT', cover: 'PROMPT\nATLAS', theme: 'theme-lilac', author: 'BY KAI ZHOU', reading: '42 个模板', title: 'AI 工作流 Prompt 图鉴', summary: '把重复工作交给 AI，把时间还给真正重要的事。', price: '订阅后阅读', likes: '86' }, { id: 3, type: 'CODE TEMPLATE', cover: 'SHIP\nFASTER', theme: 'theme-ink', author: 'BY JUNE', reading: 'Vue 3 + Spring Boot', title: '全栈项目启动模板 2.0', summary: '开箱即用的工程底座，专为快速验证想法而生。', price: '免费阅读', likes: '214' }]
+const typeLabels: Record<string, string> = { ARTICLE: 'ARTICLE', TUTORIAL: 'TUTORIAL', EBOOK: 'EBOOK', VIDEO: 'VIDEO', PDF: 'PDF', CODE: 'CODE TEMPLATE', PROMPT: 'PROMPT KIT', DATASET: 'DATASET', COLUMN: 'SERIES' }
+const fallback: ContentCard[] = [{ id: 1, type: 'SERIES / 06 PARTS', cover: 'BUILD\nIN PUBLIC', theme: 'theme-orange', author: 'BY MIAO', reading: '更新于 2 天前', title: '一个独立开发者的产品实验室', summary: '从想法到上线，记录每一次真实的产品决策。', price: '订阅后阅读', likes: '128' }, { id: 2, type: 'PROMPT KIT', cover: 'PROMPT\nATLAS', theme: 'theme-lilac', author: 'BY KAI ZHOU', reading: '42 个模板', title: 'AI 工作流 Prompt 图鉴', summary: '把重复工作交给 AI，把时间还给真正重要的事。', price: '订阅后阅读', likes: '86' }, { id: 3, type: 'CODE TEMPLATE', cover: 'SHIP\nFASTER', theme: 'theme-ink', author: 'BY JUNE', reading: 'Vue 3 + Spring Boot', title: '全栈项目启动模板 2.0', summary: '开箱即用的工程底座，专为快速验证想法而生。', price: '免费阅读', likes: '214' }]
 
-function mapContent(item, index) {
+function mapContent(item: ContentItem, index: number): ContentCard {
   return { id: item.id, type: typeLabels[item.contentType] || item.contentType, cover: (item.title || 'CONTENT').toUpperCase().split(' ').slice(0, 3).join('\n'), theme: themes[index % themes.length], author: `BY CREATOR #${item.creatorId}`, reading: `${item.viewCount || 0} 次阅读`, title: item.title, summary: item.summary || '一份正在持续更新的数字内容。', price: item.accessType === 'FREE' ? '免费阅读' : '订阅后阅读', likes: item.likeCount || 0 }
 }
 
