@@ -46,9 +46,8 @@
                   placeholder="列表页展示的简介" />
       </el-form-item>
 
-      <el-form-item label="正文">
-        <el-input v-model="form.body" type="textarea" :rows="12"
-                  placeholder="支持 Markdown-lite：## 标题、```语言 文件名 代码块、> 引用、:::warning 提示框、| 表格 |、![图](url)、- [ ] 任务、@video: / @file: / @repo: / @api: 指令" />
+      <el-form-item label="正文（Markdown-lite，预览与读者端一致）">
+        <ArticleEditor v-model="form.body" placeholder="从这里开始写。支持标题、代码块、引用、提示框、表格、任务列表…点上方工具栏或查看「语法速查」。" />
       </el-form-item>
 
       <el-form-item label="附件地址（PDF / 视频 / 数据集等）">
@@ -74,6 +73,7 @@ import type { FormInstance, FormRules } from 'element-plus'
 import { createContent, getMyContent, updateContent } from '@/api/content'
 import { listCategories } from '@/api/category'
 import type { Category, ContentPayload, ContentStatus } from '@/api/types'
+import ArticleEditor from '@/components/article/ArticleEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -193,7 +193,7 @@ onMounted(async () => {
 }
 .edit-form {
   margin-top: 30px;
-  max-width: 900px;
+  max-width: 980px;
 }
 .form-row {
   display: grid;

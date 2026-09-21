@@ -10,6 +10,7 @@ declare module 'vue' {
     AppHeader: typeof import('./src/components/AppHeader.vue')['default']
     ArticleBody: typeof import('./src/components/article/ArticleBody.vue')['default']
     ArticleComments: typeof import('./src/components/article/ArticleComments.vue')['default']
+    ArticleEditor: typeof import('./src/components/article/ArticleEditor.vue')['default']
     ArticleFooter: typeof import('./src/components/article/ArticleFooter.vue')['default']
     ArticleHeader: typeof import('./src/components/article/ArticleHeader.vue')['default']
     ArticleLayout: typeof import('./src/components/article/ArticleLayout.vue')['default']

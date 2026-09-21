@@ -61,25 +61,32 @@
       </template>
     </el-dialog>
 
-    <!-- 内容预览抽屉（计划 Day 24：表格、详情抽屉、操作按钮） -->
-    <el-drawer v-model="drawerVisible" title="内容详情" size="46%">
+    <!-- 内容预览抽屉：排版渲染与读者端一致，可切换查看源文 -->
+    <el-drawer v-model="drawerVisible" title="内容详情" size="52%">
       <div v-if="current" class="drawer-body">
         <h3>{{ current.title }}</h3>
         <p class="drawer-meta">
           #{{ current.id }} · 创作者 #{{ current.creatorId }} · {{ current.categoryName || '未分类' }}
+          <span class="drawer-toggle">
+            <a :class="{ active: drawerMode === 'preview' }" @click.prevent="drawerMode = 'preview'">排版预览</a>
+            <a :class="{ active: drawerMode === 'source' }" @click.prevent="drawerMode = 'source'">源文</a>
+          </span>
         </p>
         <p class="drawer-summary">{{ current.summary }}</p>
-        <pre class="drawer-text">{{ current.body || current.bodyPreview || '（无正文）' }}</pre>
+        <ArticleBody v-if="drawerMode === 'preview'" :blocks="drawerBlocks" />
+        <pre v-else class="drawer-text">{{ current.body || current.bodyPreview || '（无正文）' }}</pre>
       </div>
     </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { approveContent, pageForReview, rejectContent } from '@/api/content'
 import type { ContentItem, ContentStatus } from '@/api/types'
+import { parseArticleBody } from '@/utils/articleParser'
+import ArticleBody from '@/components/article/ArticleBody.vue'
 
 const loading = ref(true)
 const saving = ref(false)
@@ -98,6 +105,12 @@ const rejectTarget = ref<ContentItem | null>(null)
 
 const drawerVisible = ref(false)
 const current = ref<ContentItem | null>(null)
+const drawerMode = ref<'preview' | 'source'>('preview')
+
+/** 审核看到的排版 = 读者看到的排版（同一条解析管线） */
+const drawerBlocks = computed(() =>
+  parseArticleBody(current.value?.body || current.value?.bodyPreview),
+)
 
 const statusOptions = [
   { label: '待审核', value: 'PENDING' },
@@ -197,6 +210,7 @@ async function confirmReject() {
 
 function preview(item: ContentItem) {
   current.value = item
+  drawerMode.value = 'preview'
   drawerVisible.value = true
 }
 
@@ -225,6 +239,9 @@ onMounted(load)
 .dialog-tip { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
 .drawer-body h3 { margin: 0 0 8px; }
 .drawer-meta { font: 10px 'DM Mono', monospace; color: var(--muted); }
+.drawer-toggle { margin-left: 14px; }
+.drawer-toggle a { cursor: pointer; margin-right: 10px; color: var(--muted); }
+.drawer-toggle a.active { color: var(--ink); border-bottom: 1px solid var(--ink); padding-bottom: 2px; }
 .drawer-summary { color: var(--muted); }
 .drawer-text {
   white-space: pre-wrap; word-break: break-word; font-family: 'Noto Serif SC', serif;
