@@ -2,7 +2,20 @@
   <div class="list-page content-width">
     <div class="section-heading">
       <div><p class="eyebrow">CONTENT LIBRARY</p><h2>内容库<br><em>全部已发布内容</em></h2></div>
-      <p class="heading-aside">共 {{ total }} 份内容<br>支持按分类、类型与关键词筛选。</p>
+      <p class="heading-aside">共 {{ total }} 份内容<br>按栏目浏览，或直接搜索标题与摘要。</p>
+    </div>
+
+    <!-- 栏目：按内容形态划分，来自 GET /api/categories -->
+    <div class="category-row">
+      <span :class="{ active: filters.categoryId === null }" @click="selectCategory(null)">全部内容</span>
+      <span
+        v-for="category in categories"
+        :key="category.id"
+        :class="{ active: filters.categoryId === category.id }"
+        @click="selectCategory(category.id)"
+      >
+        {{ category.name }}
+      </span>
     </div>
 
     <div class="filter-bar">
@@ -14,12 +27,6 @@
         @keyup.enter="applyFilters"
         @clear="applyFilters"
       />
-      <el-select v-model="filters.categoryId" placeholder="全部分类" clearable class="filter-select" @change="applyFilters">
-        <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
-      </el-select>
-      <el-select v-model="filters.contentType" placeholder="全部类型" clearable class="filter-select" @change="applyFilters">
-        <el-option v-for="t in contentTypes" :key="t.value" :label="t.label" :value="t.value" />
-      </el-select>
       <el-button class="button button-dark" @click="applyFilters">筛选</el-button>
     </div>
 
@@ -72,23 +79,10 @@ const items = ref<ContentItem[]>([])
 const total = ref(0)
 const categories = ref<Category[]>([])
 
-const contentTypes = [
-  { label: '技术文章', value: 'ARTICLE' },
-  { label: '系列教程', value: 'TUTORIAL' },
-  { label: '电子书', value: 'EBOOK' },
-  { label: '视频课程', value: 'VIDEO' },
-  { label: 'PDF', value: 'PDF' },
-  { label: '代码模板', value: 'CODE' },
-  { label: 'Prompt', value: 'PROMPT' },
-  { label: '数据集', value: 'DATASET' },
-  { label: '专栏', value: 'COLUMN' },
-]
-
 const filters = reactive({
   pageNum: 1,
   pageSize: 9,
   categoryId: null as number | null,
-  contentType: '' as string,
   keyword: '',
 })
 
@@ -107,7 +101,6 @@ async function load() {
       pageNum: filters.pageNum,
       pageSize: filters.pageSize,
       categoryId: filters.categoryId,
-      contentType: filters.contentType || undefined,
       keyword: filters.keyword || undefined,
     })
     if (res.data.success) {
@@ -126,6 +119,12 @@ async function load() {
 function applyFilters() {
   filters.pageNum = 1
   load()
+}
+
+/** 点击顶部栏目：切换分类并立刻重新查询 */
+function selectCategory(id: number | null) {
+  filters.categoryId = id
+  applyFilters()
 }
 
 function handlePageChange(page: number) {
@@ -159,13 +158,13 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
-  padding: 22px 0 30px;
+  padding: 6px 0 30px;
 }
 .filter-keyword {
   width: 260px;
 }
-.filter-select {
-  width: 170px;
+.category-row span {
+  user-select: none;
 }
 .pager {
   display: flex;

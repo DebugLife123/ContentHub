@@ -19,6 +19,7 @@ import ContentReview from '../views/admin/ContentReview.vue'
 import AdminUsers from '../views/admin/Users.vue'
 import AdminComments from '../views/admin/Comments.vue'
 import AdminPlans from '../views/admin/Plans.vue'
+import ComingSoon from '../views/ComingSoon.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -27,6 +28,10 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     /** 允许访问的角色，未设置表示登录即可 */
     roles?: Role[]
+    /** 占位页用：小标题与说明文案 */
+    eyebrow?: string
+    description?: string
+    highlights?: string[]
   }
 }
 
@@ -39,6 +44,30 @@ const routes: RouteRecordRaw[] = [
 
   // ---------- 订阅方案（公开可看，购买需登录） ----------
   { path: '/plans', component: Plans, meta: { title: '订阅方案' } },
+
+  // ---------- 两个新板块：先占位，功能待实现 ----------
+  {
+    path: '/skills',
+    component: ComingSoon,
+    meta: {
+      title: 'Skill 商城',
+      eyebrow: 'SKILL MARKETPLACE',
+      description:
+        '把可复用的能力（Prompt、Agent、工作流插件）打包成可上架的 Skill，让创作者像卖内容一样卖能力。',
+      highlights: ['Skill 上架与定价', '一键安装到自己的工作流', '版本与依赖管理', '创作者分成结算'],
+    },
+  },
+  {
+    path: '/workflows',
+    component: ComingSoon,
+    meta: {
+      title: 'AI Workflow',
+      eyebrow: 'AI WORKFLOW',
+      description:
+        '把多个 Skill 串成一条可执行的流水线：输入素材、自动加工、产出成品，全过程可视化编排。',
+      highlights: ['节点式流程编排', '定时与事件触发', '运行日志与重试', '产出一键发布到内容库'],
+    },
+  },
 
   // ---------- 需要登录 ----------
   { path: '/profile', component: Profile, meta: { title: '个人中心', requiresAuth: true } },

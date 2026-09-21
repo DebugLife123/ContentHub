@@ -48,8 +48,9 @@ ContentHub/
 │       ├── stores/user.ts       # Pinia 登录态
 │       ├── router/index.ts      # 路由与守卫（requiresAuth / roles）
 │       └── views/
-│           ├── Home.vue / ContentList.vue / ContentDetail.vue   # 首页（含热门榜）/ 内容库 / 详情（试读 + 评论 + 收藏）
+│           ├── Home.vue / ContentList.vue / ContentDetail.vue   # 首页（含热门榜）/ 内容库（栏目横排）/ 详情（试读 + 评论 + 收藏）
 │           ├── Login.vue / Register.vue / Profile.vue           # 认证与个人中心（收藏 / 阅读历史 / 我的评论）
+│           ├── ComingSoon.vue   # Skill 商城 / AI Workflow 占位页（读 route.meta 渲染）
 │           ├── creator/         # 工作台（统计 + 状态流转）、创作者资料、套餐管理、发布与编辑
 │           ├── admin/           # 内容审核、评论管理、用户管理、分类管理、套餐管理
 │           └── subscription/    # 订阅方案、我的订阅
@@ -221,6 +222,18 @@ ContentHub/
 阶段 0-7（计划 Day 1-60）已全部完成，`docker compose --profile full up -d --build` 可一键起全栈。
 仅剩计划中标注为「可选升级」的 Day 61-70（Spring AI / RAG / AI 内容助手）未开始。
 
+### 规划中的板块（当前为占位页）
+
+顶栏新增两个板块入口，页面已接好路由但功能未实现，统一由 `views/ComingSoon.vue` 渲染
+（文案与要点列表写在 `router/index.ts` 的 `meta` 里，两个板块共用同一个组件）：
+
+| 路径 | 板块 | 规划要点 |
+|---|---|---|
+| `/skills` | Skill 商城 | Skill 上架与定价、一键安装到工作流、版本与依赖管理、创作者分成结算 |
+| `/workflows` | AI Workflow | 节点式流程编排、定时与事件触发、运行日志与重试、产出一键发布到内容库 |
+
+这两个板块对应计划里 Day 61-70 的可选升级方向，目前只是占位，点进去会看到「正在建设中」。
+
 ## 已实现接口
 
 所有接口统一以 `/api` 为前缀（`server.servlet.context-path`），与计划表 19 的约定一致。
@@ -237,7 +250,22 @@ ContentHub/
 | GET | `/api/users/me/comments` | 登录 | 我的评论 |
 | GET | `/api/users/me/history` | 登录 | 我的阅读历史（含进度） |
 
-### 分类
+### 分类（栏目）
+
+内容库的栏目按**内容形态**划分，共 7 项，由 `content_category` 表驱动，内容库顶部横排标签即这 7 项：
+
+| id | 栏目 | 说明 |
+|---|---|---|
+| 1 | 技术文章 | `content_type = ARTICLE` |
+| 2 | 电子书 | `content_type = EBOOK`，配 `file_url` |
+| 3 | 视频课程 | `content_type = VIDEO`，配 `file_url` |
+| 4 | PDF | `content_type = PDF`，配 `file_url` |
+| 5 | 代码模板 | `content_type = CODE` |
+| 6 | Prompt | `content_type = PROMPT` |
+| 7 | 专栏 | `content_type = COLUMN` |
+
+栏目仍由管理员在「分类管理」里增删改，`content_type` 字段独立保留（创作者发布时选择），
+内容库不再单独暴露「类型」筛选，避免与栏目重复。
 
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|

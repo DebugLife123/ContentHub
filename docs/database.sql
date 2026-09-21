@@ -202,26 +202,40 @@ INSERT INTO `creator_profiles` (`user_id`,`display_name`,`intro`,`verified`) VAL
 -- ----------------------------
 -- 初始数据: 内容分类
 -- ----------------------------
+-- 栏目按「内容形态」划分：内容库顶部横排标签即这 7 项
 INSERT INTO `content_category` (`id`,`name`,`sort`,`status`) VALUES
-(1, '产品与独立开发', 10, 'ENABLED'),
-(2, 'AI 与效率工具', 20, 'ENABLED'),
-(3, '前端工程',       30, 'ENABLED'),
-(4, '后端与架构',     40, 'ENABLED');
+(1, '技术文章', 10, 'ENABLED'),
+(2, '电子书',   20, 'ENABLED'),
+(3, '视频课程', 30, 'ENABLED'),
+(4, 'PDF',      40, 'ENABLED'),
+(5, '代码模板', 50, 'ENABLED'),
+(6, 'Prompt',   60, 'ENABLED'),
+(7, '专栏',     70, 'ENABLED');
 
 -- ----------------------------
--- 初始数据: 内容
+-- 初始数据: 内容（每个栏目至少一篇，便于演示栏目筛选）
 -- ----------------------------
-INSERT INTO `contents` (`creator_id`,`category_id`,`title`,`summary`,`cover`,`content_type`,`body`,`access_type`,`status`,`view_count`,`like_count`) VALUES
-(2, 1, '一个独立开发者的产品实验室', '从想法到上线，记录每一次真实的产品决策。', NULL, 'COLUMN', '# 产品实验室\n\n从想法到上线，记录每一次真实的产品决策。', 'SUBSCRIBED', 'PUBLISHED', 1280, 128),
-(2, 2, 'AI 工作流 Prompt 图鉴', '把重复工作交给 AI，把时间还给真正重要的事。', NULL, 'PROMPT', '# Prompt Atlas\n\n42 个可以直接复用的工作流模板。', 'SUBSCRIBED', 'PUBLISHED', 860, 86),
-(2, 3, '全栈项目启动模板 2.0', '开箱即用的工程底座，专为快速验证想法而生。', NULL, 'CODE', '# Ship Faster\n\nVue 3 + Spring Boot 全栈项目启动模板。', 'FREE', 'PUBLISHED', 2140, 214),
-(2, 4, '从单体到分层：一次后端结构整理', '把 Controller 写成一锅粥之后，我是怎么收拾的。', NULL, 'ARTICLE', '# 分层的意义\n\nController 只做参数与响应，业务规则全部落在 Service。', 'FREE', 'PUBLISHED', 430, 41);
+INSERT INTO `contents` (`creator_id`,`category_id`,`title`,`summary`,`cover`,`content_type`,`body`,`file_url`,`access_type`,`status`,`view_count`,`like_count`) VALUES
+-- 技术文章
+(2, 1, '从单体到分层：一次后端结构整理', '把 Controller 写成一锅粥之后，我是怎么收拾的。', NULL, 'ARTICLE', '# 分层的意义\n\nController 只做参数与响应，业务规则全部落在 Service。', NULL, 'FREE', 'PUBLISHED', 430, 41),
+-- 电子书
+(2, 2, '内容创作者增长手册', '从 0 到 1000 名订阅者的完整路径，含选题与定价方法。', NULL, 'EBOOK', '# 增长手册\n\n一份可以边读边执行的电子书。', 'https://example.com/files/creator-growth.epub', 'SUBSCRIBED', 'PUBLISHED', 940, 97),
+-- 视频课程
+(2, 3, 'Vue 3 组合式 API 实战课', '12 节视频，把 Composition API 用到真实项目里。', NULL, 'VIDEO', '# 实战课\n\n配套源码与每节课的讲义。', 'https://example.com/videos/vue3-course.mp4', 'SUBSCRIBED', 'PUBLISHED', 1520, 168),
+-- PDF
+(2, 4, '全栈项目架构手册（PDF）', '一册讲清前后端分层、鉴权与部署的工程决策。', NULL, 'PDF', '# 架构手册\n\n适合当作项目启动前的检查清单。', 'https://example.com/files/architecture.pdf', 'FREE', 'PUBLISHED', 1130, 120),
+-- 代码模板
+(2, 5, '全栈项目启动模板 2.0', '开箱即用的工程底座，专为快速验证想法而生。', NULL, 'CODE', '# Ship Faster\n\nVue 3 + Spring Boot 全栈项目启动模板。', NULL, 'FREE', 'PUBLISHED', 2140, 214),
+-- Prompt
+(2, 6, 'AI 工作流 Prompt 图鉴', '把重复工作交给 AI，把时间还给真正重要的事。', NULL, 'PROMPT', '# Prompt Atlas\n\n42 个可以直接复用的工作流模板。', NULL, 'SUBSCRIBED', 'PUBLISHED', 860, 86),
+-- 专栏
+(2, 7, '一个独立开发者的产品实验室', '从想法到上线，记录每一次真实的产品决策。', NULL, 'COLUMN', '# 产品实验室\n\n从想法到上线，记录每一次真实的产品决策。', NULL, 'SUBSCRIBED', 'PUBLISHED', 1280, 128);
 
 -- ----------------------------
 -- 初始数据: 一条待审核内容（便于直接演示管理端审核流程）
 -- ----------------------------
 INSERT INTO `contents` (`creator_id`,`category_id`,`title`,`summary`,`content_type`,`body`,`access_type`,`status`) VALUES
-(2, 4, '待审核：一次线上事故的复盘', '还在等管理员审核，未发布。', 'ARTICLE', '# 事故复盘\n\n这份内容当前处于 PENDING 状态，通过后才会出现在内容库。', 'SUBSCRIBED', 'PENDING');
+(2, 1, '待审核：一次线上事故的复盘', '还在等管理员审核，未发布。', 'ARTICLE', '# 事故复盘\n\n这份内容当前处于 PENDING 状态，通过后才会出现在内容库。', 'SUBSCRIBED', 'PENDING');
 
 -- ----------------------------
 -- 初始数据: 订阅套餐（验收要求能创建 Pro / Premium 套餐）
