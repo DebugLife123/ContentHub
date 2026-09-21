@@ -47,7 +47,8 @@
       </el-form-item>
 
       <el-form-item label="正文">
-        <el-input v-model="form.body" type="textarea" :rows="12" placeholder="支持 Markdown" />
+        <el-input v-model="form.body" type="textarea" :rows="12"
+                  placeholder="支持 Markdown-lite：## 标题、```语言 文件名 代码块、> 引用、:::warning 提示框、| 表格 |、![图](url)、- [ ] 任务、@video: / @file: / @repo: / @api: 指令" />
       </el-form-item>
 
       <el-form-item label="附件地址（PDF / 视频 / 数据集等）">

@@ -139,6 +139,9 @@ onMounted(async () => {
     const parsed = Number(categoryId)
     if (!Number.isNaN(parsed)) filters.categoryId = parsed
   }
+  // 支持从文章标签点进来：/contents?keyword=Spring
+  const keyword = route.query.keyword
+  if (typeof keyword === 'string' && keyword) filters.keyword = keyword
   try {
     const res = await listCategories()
     if (res.data.success) categories.value = res.data.data
