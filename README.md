@@ -50,7 +50,8 @@ ContentHub/
 │       └── views/
 │           ├── Home.vue / ContentList.vue / ContentDetail.vue   # 首页（含热门榜）/ 内容库（栏目横排）/ 详情（试读 + 评论 + 收藏）
 │           ├── Login.vue / Register.vue / Profile.vue           # 认证与个人中心（收藏 / 阅读历史 / 我的评论）
-│           ├── ComingSoon.vue   # Skill 商城 / AI Workflow 占位页（读 route.meta 渲染）
+│           ├── ComingSoon.vue   # AI Workflow 占位页（读 route.meta 渲染）
+│           ├── skill/           # Skill 商城：SkillList.vue（分类 + 星数排序）、SkillDetail.vue
 │           ├── creator/         # 工作台（统计 + 状态流转）、创作者资料、套餐管理、发布与编辑
 │           ├── admin/           # 内容审核、评论管理、用户管理、分类管理、套餐管理
 │           └── subscription/    # 订阅方案、我的订阅
@@ -222,17 +223,33 @@ ContentHub/
 阶段 0-7（计划 Day 1-60）已全部完成，`docker compose --profile full up -d --build` 可一键起全栈。
 仅剩计划中标注为「可选升级」的 Day 61-70（Spring AI / RAG / AI 内容助手）未开始。
 
-### 规划中的板块（当前为占位页）
+### Skill 商城（前端已完成，数据仍是 mock）
 
-顶栏新增两个板块入口，页面已接好路由但功能未实现，统一由 `views/ComingSoon.vue` 渲染
-（文案与要点列表写在 `router/index.ts` 的 `meta` 里，两个板块共用同一个组件）：
+顶栏「Skill 商城」入口，对应计划 Day 61-70 里「可复用能力交易」的方向。
+
+| 路径 | 页面 | 说明 |
+|---|---|---|
+| `/skills` | 列表 | 7 个分类（全部 / 开发工具 / 写作与文档 / 数据处理 / 设计创意 / 自动化 / 安全合规），**默认按 GitHub 星数倒序**，另可按最近更新与名称排序；支持关键词搜索；分类同步到地址栏（`/skills?categoryId=dev`）可分享、可后退 |
+| `/skills/:id` | 详情 | 面包屑 + 头部（图标 / 名称 / 摘要 / 版本 / 星数 / 下载量 / 安装 / 官网）+「详情 / 评论」页签；正文含功能特点、为什么收录、快速上手、安装命令；右侧信息栏含基本信息、提交信息、安全评级、兼容平台、标签、团队协作 |
+
+**会员解锁**沿用内容库那套口径：
+
+- 每个 Skill 有 `accessType`：`FREE` 直接可看，`MEMBER` 需要会员
+- 会员身份 = 存在一条 `valid = true` 的订阅，由 `stores/membership.ts` 查 `/api/subscriptions/my` 得出
+- 未解锁时不渲染快速上手步骤与安装命令（数据层 `getSkill(id, isMember)` 直接置空），页面给锁定提示与「查看订阅方案」引导——和内容库「未解锁只给试读片段」是同一个做法
+
+> **数据是假的。** 列表与详情都读 `src/mock/skills.ts`（12 个 Skill，含评论），
+> 星数、大小、更新时间参考真实仓库量级但不是实时数据。
+> 唯一的读取入口是 `src/api/skill.ts`，后端有 Skill 表与接口后把函数体换成 `api.get(...)` 即可，视图层不用改。
+> 另外要注意：**前端的锁定判断只是体验层**，和内容库一样，真正的权限必须由服务端决定。
+
+### 仍为占位的板块
+
+`/workflows`（AI Workflow）仍是占位页，由 `views/ComingSoon.vue` 渲染，文案与要点列表写在 `router/index.ts` 的 `meta` 里：
 
 | 路径 | 板块 | 规划要点 |
 |---|---|---|
-| `/skills` | Skill 商城 | Skill 上架与定价、一键安装到工作流、版本与依赖管理、创作者分成结算 |
 | `/workflows` | AI Workflow | 节点式流程编排、定时与事件触发、运行日志与重试、产出一键发布到内容库 |
-
-这两个板块对应计划里 Day 61-70 的可选升级方向，目前只是占位，点进去会看到「正在建设中」。
 
 ## 已实现接口
 

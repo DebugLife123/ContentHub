@@ -197,6 +197,84 @@ export interface AdminUser {
   createTime?: string
 }
 
+// ------------------------------------------------------------------ Skill 商城（当前为 mock 数据）
+
+/** Skill 分类 */
+export interface SkillCategory {
+  id: string
+  name: string
+}
+
+/** 快速上手步骤 */
+export interface SkillStep {
+  title: string
+  detail?: string
+}
+
+/** 团队协作信息 */
+export interface SkillTeam {
+  maintainers: number
+  contributors: number
+  openIssues: number
+  lastCommit: string
+}
+
+/** Skill 评论 */
+export interface SkillComment {
+  id: number
+  user: string
+  time: string
+  body: string
+}
+
+/** Skill 列表项 */
+export interface SkillItem {
+  id: string
+  name: string
+  icon: string
+  categoryId: string
+  summary: string
+  author: string
+  repo: string
+  stars: number
+  version: string
+  /** FREE 免费 / MEMBER 会员解锁 */
+  accessType: 'FREE' | 'MEMBER'
+  platforms: string[]
+  tags: string[]
+  updatedAt: string
+}
+
+/** Skill 详情（比列表项多出详情页需要的字段） */
+export interface SkillDetail extends SkillItem {
+  license: string
+  size: string
+  downloads: number
+  /** 1-5 级，5 最好 */
+  securityLevel: number
+  securityLabel: string
+  submitter: string
+  submitTime: string
+  officialUrl: string
+  installCommand: string
+  /** 功能特点 */
+  features: string[]
+  /** 为什么收录 */
+  whyIncluded: string
+  quickStart: SkillStep[]
+  team: SkillTeam
+  comments: SkillComment[]
+  /** 是否因会员权限被锁；由调用方按当前会员状态计算 */
+  locked?: boolean
+  lockReason?: string | null
+}
+
+export interface SkillQuery {
+  categoryId?: string
+  keyword?: string
+  sort?: 'stars' | 'updated' | 'name'
+}
+
 /** 创作者仪表盘统计（阶段 6 Day 48） */
 export interface CreatorDashboard {
   contentCount: number

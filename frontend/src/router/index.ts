@@ -20,6 +20,8 @@ import AdminUsers from '../views/admin/Users.vue'
 import AdminComments from '../views/admin/Comments.vue'
 import AdminPlans from '../views/admin/Plans.vue'
 import ComingSoon from '../views/ComingSoon.vue'
+import SkillList from '../views/skill/SkillList.vue'
+import SkillDetail from '../views/skill/SkillDetail.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -45,18 +47,11 @@ const routes: RouteRecordRaw[] = [
   // ---------- 订阅方案（公开可看，购买需登录） ----------
   { path: '/plans', component: Plans, meta: { title: '订阅方案' } },
 
-  // ---------- 两个新板块：先占位，功能待实现 ----------
-  {
-    path: '/skills',
-    component: ComingSoon,
-    meta: {
-      title: 'Skill 商城',
-      eyebrow: 'SKILL MARKETPLACE',
-      description:
-        '把可复用的能力（Prompt、Agent、工作流插件）打包成可上架的 Skill，让创作者像卖内容一样卖能力。',
-      highlights: ['Skill 上架与定价', '一键安装到自己的工作流', '版本与依赖管理', '创作者分成结算'],
-    },
-  },
+  // ---------- Skill 商城（数据仍是 mock，见 api/skill.ts） ----------
+  { path: '/skills', component: SkillList, meta: { title: 'Skill 商城' } },
+  { path: '/skills/:id', component: SkillDetail, meta: { title: 'Skill 详情' } },
+
+  // ---------- AI Workflow：先占位，功能待实现 ----------
   {
     path: '/workflows',
     component: ComingSoon,
