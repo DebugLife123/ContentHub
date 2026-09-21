@@ -1,0 +1,7 @@
+# 构建产物与 IDE 配置不进构建上下文（target 可能上百 MB）
+target/
+*/target/
+.idea/
+*.iml
+*.log
+logs/

@@ -1,17 +1,22 @@
 # ============================================================
-# ContentHub 本地开发基础设施
+# ContentHub
 #
-# 只包含 MySQL 与 Redis —— 它们才需要常驻和开机自启。
-# 后端（8084）与前端（5175）作为开发期应用，故意不放进容器：
-#   - 后端在 IDE 里跑，改完 Java 秒级生效，且不占用 8084 导致端口冲突
-#   - 前端 Vite dev server 需要 Windows 宿主机的 inotify 事件才能 HMR，
-#     放进容器会退化为轮询并让 node_modules 与宿主漂移
+# 本地开发（默认，不带 profile）：
+#     docker compose up -d
+#   只启动 MySQL 与 Redis 两个基础设施容器。
+#   后端与前端在宿主机上跑（见 scripts/dev-up.ps1）：
+#     - 后端在 IDE / java -jar 里跑，改一次 Java 就能立刻重启
+#     - 前端 Vite dev server 需要宿主机 inotify 才能 HMR
 #
-# 阶段 7（Day 56-60）会在此文件上扩展 backend + nginx 服务用于部署，
-# 届时前端容器里跑的是 `npm run build` 的静态产物 + Nginx，而不是 dev server。
+# 完整部署（带 full profile）：
+#     docker compose --profile full up -d --build
+#   额外启动 backend 与 frontend（Nginx + 构建产物）。
+#   用 profiles 而不是两个 compose 文件，是为了让两套环境共用
+#   同一份 MySQL/Redis 定义，端口与数据卷不会漂移。
 #
-# 端口刻意避开其他项目：
-#   springboot-mall 占用 3307 / educheck 占用 6379，这里用 3308 / 6380
+# 端口：springboot-mall 占用 3307、educheck 占用 6379、
+#       mbti 占用 8080/5173、其他本机服务占用 8081/8090，
+#       这里用 3308 / 6380 / 8085 避开。
 # ============================================================
 
 services:
@@ -31,7 +36,6 @@ services:
     volumes:
       - contenthub-mysql-data:/var/lib/mysql
       # 首次初始化数据卷时自动执行，建表 + 写入演示数据
-      # 与手动执行的 `Get-Content docs\database.sql | docker exec -i ...` 等价
       - ./docs/database.sql:/docker-entrypoint-initdb.d/01-database.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456", "--silent"]
@@ -55,6 +59,50 @@ services:
       timeout: 5s
       retries: 12
       start_period: 10s
+
+  # ---------------------------------------------------------- 部署用（--profile full）
+  backend:
+    profiles: ["full"]
+    build:
+      context: ./backend
+    image: contenthub-backend:latest
+    container_name: contenthub-backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      # application-docker.yml：数据库与 Redis 走 compose 服务名
+      SPRING_PROFILES_ACTIVE: docker
+      TZ: Asia/Shanghai
+    # 刻意不发布端口：后端只允许经 Nginx 访问，
+    # 避免绕过反向代理直接打 8084
+    expose:
+      - "8084"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8084/api/contents/page"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  frontend:
+    profiles: ["full"]
+    build:
+      context: ./frontend
+    image: contenthub-frontend:latest
+    container_name: contenthub-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Shanghai
+    ports:
+      # 对外只暴露这一个端口：Nginx 既发静态文件，也反代 /api
+      - "8085:80"
 
 volumes:
   contenthub-mysql-data:

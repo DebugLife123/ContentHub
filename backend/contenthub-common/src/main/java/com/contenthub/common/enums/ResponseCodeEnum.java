@@ -38,6 +38,12 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     ACCOUNT_DISABLED("20019", "账号已被禁用，请联系管理员"),
     COMMENT_NOT_FOUND("20020", "评论不存在"),
     NOT_COMMENT_OWNER("20021", "只能删除自己的评论"),
+    RESOURCE_NOT_FOUND("20022", "请求的资源不存在"),
+    METHOD_NOT_ALLOWED("20023", "请求方法不被支持"),
+    PARAM_TYPE_MISMATCH("20024", "参数类型不正确"),
+    MISSING_PARAM("20025", "缺少必要的请求参数"),
+    DUPLICATE_KEY("20026", "数据已存在，请勿重复提交"),
+    UNSUPPORTED_MEDIA_TYPE("20027", "不支持的请求内容类型"),
     SELECT_FAIL("20003","查询数据库时出错");
     // 异常码
     private String errorCode;

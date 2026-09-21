@@ -1,0 +1,7 @@
+# 依赖与构建产物不进构建上下文（node_modules 很大）
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.log
+.idea/

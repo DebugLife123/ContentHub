@@ -28,10 +28,10 @@ ContentHub 不是一个普通"卖电子书"的商城，而是一个"创作者发
 | 前端 | Vue 3 + TypeScript + Vite | ✅ Vue 3 + **TypeScript 5.9** + Vite 4，`vue-tsc` 类型检查已接入构建 |
 | 前端状态 | Pinia + Axios + Element Plus | ✅ 已就绪，Pinia 持久化插件已注册 |
 | 后端 | Java 17 + Spring Boot 3 | ✅ **Java 17 + Spring Boot 3.2.5** |
-| 数据库 | MySQL + MyBatis-Plus | ✅ 已就绪（`contenthub` 库 @3307，MyBatis-Plus 3.5.5） |
-| 权限 | Spring Security + JWT | 🟡 JWT 登录链路已通；Redis 持久化 token 与角色授权未做（阶段 2） |
-| 缓存 | Redis | ✅ 已接入（`spring.data.redis`，127.0.0.1:6379） |
-| 部署 | Docker + Nginx | ⬜ 未开始（阶段 7） |
+| 数据库 | MySQL + MyBatis-Plus | ✅ 已就绪（`contenthub` 库 @3308，MyBatis-Plus 3.5.5） |
+| 权限 | Spring Security + JWT | ✅ JWT + Redis 会话、USER / CREATOR / ADMIN 三级角色鉴权 |
+| 缓存 | Redis | ✅ 已接入（127.0.0.1:6380，token / 内容缓存 / 浏览计数 / 热门榜） |
+| 部署 | Docker + Nginx | ✅ 多阶段镜像 + Nginx 反代，`docker compose --profile full` 一键起 |
 
 ## 目录结构
 
@@ -77,10 +77,25 @@ ContentHub/
 | 阶段 4 | Day 30-38 | 套餐、订阅、模拟支付、订阅到期 | ✅ 已完成（tag `v0.2`） |
 | 阶段 5 | Day 39-47 | Redis 缓存、热门、搜索、收藏、评论、历史 | ✅ 已完成 |
 | 阶段 6 | Day 48-55 | 创作者中心 + 管理后台 | ✅ 已完成 |
-| 阶段 7 | Day 56-60 | 联调、异常处理、Docker、Nginx、部署 | ⬜ 未开始 |
+| 阶段 7 | Day 56-60 | 联调、异常处理、Docker、Nginx、部署 | ✅ 已完成（tag `v1.0`） |
 | 可选升级 | Day 61-70 | Spring AI / RAG / AI 内容助手 | ⬜ 未开始 |
 
-**结论：阶段 0-6 均已完成；只剩阶段 7（Docker 化部署 + Nginx + README 截图）与可选的 AI 升级。**
+**结论：计划的 60 天主体（阶段 0-7）已全部完成，仅剩可选的 AI 升级阶段。**
+
+### 阶段 7 已完成
+
+| 计划验收标准 | 落实 |
+|---|---|
+| 一个命令可以启动主要服务 | `docker compose --profile full up -d --build` |
+| 公网可以访问前端 | Nginx 容器唯一对外端口（默认 8085），静态产物 + `/api` 反代 |
+| 登录、浏览、订阅、权限、后台流程完整可跑 | 经 Nginx 走通，见下方「部署验证」 |
+| README 写清楚启动方式和项目亮点 | 「部署」与「项目亮点」两节 |
+
+- **异常处理补齐（Day 56）**：新增对参数绑定失败、参数类型不匹配、请求体非法 JSON、缺少必填参数、请求方法不支持、路径不存在、唯一键冲突的处理。此前这些都会落到「其他异常」分支返回笼统的系统错误，`GET /contents/abc` 这类请求甚至只能看到一句「出错啦」。
+- **返回约定**：应用层异常统一返回 HTTP 200 + 统一响应体（`success=false` + 错误码），只有 Spring Security 的认证/授权失败返回 401/403。前端因此只需一套解析逻辑：先看状态码判断登录态，再看 `success` 判断业务结果。未预期异常的堆栈只进日志，不会把表名、SQL、类名泄漏给调用方。
+- **前后端容器化（Day 57）**：后端多阶段构建（Maven 构建 → JRE 运行，运行镜像里没有源码和 Maven 仓库，并以非 root 用户启动）；前端多阶段构建（Node 构建 → Nginx 托管产物）。
+- **Nginx 反向代理（Day 58）**：`location ^~ /api/` 用 `^~` 前缀匹配，避免 `/api/xxx.js` 被静态资源正则抢走；开启 gzip（打包后单个 JS 接近 1MB）；静态资源 7 天缓存。
+- **两侧镜像加速**：后端在容器内构建时 Maven 依赖走 pom 里声明的阿里云仓库；前端加了项目级 `.npmrc` 指向 npmmirror，否则容器构建会去打 registry.npmjs.org 而频繁超时。
 
 ### 阶段 5 与阶段 6 已完成
 
@@ -203,7 +218,8 @@ ContentHub/
 
 ### 阶段 7 及以后
 
-阶段 7 与可选 AI 阶段未开始。当前还没有 `Dockerfile`，`docker-compose.yml` 只包含 MySQL 与 Redis（阶段 7 会扩展加入 backend + nginx）。
+阶段 0-7（计划 Day 1-60）已全部完成，`docker compose --profile full up -d --build` 可一键起全栈。
+仅剩计划中标注为「可选升级」的 Day 61-70（Spring AI / RAG / AI 内容助手）未开始。
 
 ## 已实现接口
 
@@ -505,10 +521,129 @@ Invoke-RestMethod http://127.0.0.1:8084/api/plans | ConvertTo-Json -Depth 5
 > Invoke-RestMethod "http://127.0.0.1:8084/api/contents/page?keyword=$kw"
 > ```
 
-## 下一步（严格按计划的阶段顺序）
+## 部署（阶段 7）
 
-1. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、为前后端编写 `Dockerfile`、扩展 `docker-compose.yml` 加入 backend + nginx（前端容器里跑 `npm run build` 产物 + Nginx）、Nginx 反向代理、部署到 Linux、整理项目截图，打 tag `v1.0`。
-2. **可选升级（Day 61-70）**：Spring AI / RAG / AI 内容助手。
+### 一条命令启动
+
+```bash
+docker compose --profile full up -d --build
+```
+
+启动后访问 **http://127.0.0.1:8085**（Nginx 容器，对外只暴露这一个端口）。
+
+四个服务：`mysql` → `redis` → `backend` → `frontend`，靠 healthcheck 保证启动顺序。
+
+### 架构
+
+```mermaid
+flowchart LR
+    B["浏览器<br/>http://host:8085"]
+    subgraph compose["docker compose（project: contenthub）"]
+        direction LR
+        N["frontend<br/>Nginx + dist<br/>:80 → 宿主 8085"]
+        A["backend<br/>Spring Boot 3.2<br/>:8084（不发布）"]
+        M[("mysql:8.0<br/>:3306 → 宿主 3308")]
+        R[("redis:7<br/>:6379 → 宿主 6380")]
+    end
+
+    B -->|"静态文件 /"| N
+    B -->|"/api/** 反向代理"| N
+    N -->|"proxy_pass backend:8084"| A
+    A -->|"JDBC"| M
+    A -->|"缓存 / 浏览量 / 热门 ZSet / 登录 token"| R
+```
+
+几个刻意的设计：
+
+- **后端容器不发布端口**（用 `expose` 而不是 `ports`）：所有流量必须经过 Nginx，避免有人绕过反向代理直接打 8084。
+- **前端容器里跑的是 `npm run build` 产物 + Nginx**，不是 Vite dev server。生产环境不该常驻一个开发服务器。
+- **用 compose profiles 区分两套环境**：`docker compose up -d` 只起 MySQL/Redis（本地开发用，后端与前端在宿主机上跑以获得热重载）；`--profile full` 才加上 backend/frontend。两者共用同一份 MySQL/Redis 定义，端口与数据卷不会漂移。
+- **后端容器用 `application-docker.yml`**：数据库与 Redis 走 compose 服务名（`mysql` / `redis`）而不是 `127.0.0.1`——容器里的 localhost 是容器自己；同时关掉 API 文档，减少对外暴露面。
+
+### 端口
+
+| 服务 | 容器内 | 宿主 | 说明 |
+|---|---|---|---|
+| frontend (Nginx) | 80 | **8085** | 唯一对外入口 |
+| backend | 8084 | 不发布 | 只能经 Nginx 访问 |
+| mysql | 3306 | 3308 | 本地开发也用这个 |
+| redis | 6379 | 6380 | 本地开发也用这个 |
+
+宿主端口刻意避开本机其他项目（`springboot-mall` 3307、`educheck` 6379、`mbti` 8080/5173）。
+
+### 部署到 Linux 服务器
+
+```bash
+# 1. 服务器上安装 Docker 与 compose 插件
+curl -fsSL https://get.docker.com | sh
+
+# 2. 拉代码
+git clone https://github.com/DebugLife123/ContentHub.git
+cd ContentHub
+
+# 3. 一条命令起服务（首次会构建镜像，需要几分钟）
+docker compose --profile full up -d --build
+
+# 4. 确认四个容器都健康
+docker compose ps
+
+# 5. 开放端口（以 ufw 为例），只开 Nginx 那一个
+sudo ufw allow 8085/tcp
+```
+
+要是希望直接用 80 端口，把 `docker-compose.yml` 里 frontend 的端口映射改成 `"80:80"` 即可。
+
+**上线前必须改掉的东西**（当前是本地学习用的默认值）：
+
+- `application.yml` 的 `jwt.secret` —— 它公开在仓库里，任何人都能用它伪造 token，务必换成一个新的随机值；
+- MySQL 的 root 密码 `123456`（`docker-compose.yml` 与 `application-docker.yml`）；
+- 数据库与 Redis 不要暴露到公网（当前 compose 把 3308/6380 发布到了宿主，服务器上应删掉这两个 `ports`）。
+
+### 日志与排障
+
+```bash
+docker compose --profile full logs -f backend     # 后端日志
+docker compose --profile full logs -f frontend    # Nginx 访问日志
+docker compose ps                                 # 健康状态
+docker compose --profile full down                # 停止（保留数据卷）
+docker compose --profile full down -v             # 连同数据卷一起删（会重建演示数据）
+```
+
+### 截图
+
+自动化环境里没法截图，下面这几张需要你自己打开 http://127.0.0.1:8085 补进 `docs/screenshots/`：
+
+| 文件名 | 页面 |
+|---|---|
+| `01-home.png` | 首页（含热门榜） |
+| `02-content-list.png` | 内容库（筛选 + 分页） |
+| `03-content-locked.png` | 付费内容详情（试读 + 订阅引导） |
+| `04-content-unlocked.png` | 订阅后的完整正文 + 评论区 |
+| `05-plans.png` | 订阅方案 |
+| `06-creator-dashboard.png` | 创作者工作台（统计卡片） |
+| `07-admin-review.png` | 内容审核 |
+| `08-profile.png` | 个人中心（收藏 / 阅读历史 / 我的评论） |
+
+## 项目亮点（可直接用于简历）
+
+> 基于 Spring Boot 3 + Vue 3 + MySQL + Redis 的数字内容订阅平台，围绕「创作者发布内容 → 用户订阅 → 按订阅授予内容权限」设计核心链路，实现了 JWT + Redis 的可撤回登录态、三级 RBAC（USER/CREATOR/ADMIN）、内容审核状态机、按有效订阅判定的内容访问控制，以及 Redis 缓存 / 热门 ZSet / 浏览量异步落库；前端使用 Vue 3 + TypeScript + Pinia，生产环境以 Docker Compose + Nginx 部署。
+
+面试常被问到的几处，答案都写在代码注释与本文档里：
+
+| 问题 | 答案位置 |
+|---|---|
+| 为什么把登录 token 放 Redis？纯 JWT 不行吗？ | `LoginTokenService` 类注释 |
+| 内容访问权限怎么判断？订阅过期怎么办？ | `ContentAccessService` / `SubscriptionService.hasActiveSubscription` |
+| 热点内容为什么用 ZSet？ | `ContentStatService` / `RedisKeys` |
+| 浏览量为什么先写 Redis 再同步 MySQL？ | `ContentStatServiceImpl.recordView` 注释 |
+| 缓存和数据库不一致怎么处理？ | `ContentCacheService.evict` + 各写路径的失效调用 |
+| 怎样防止创作者修改别人的内容？ | `ContentServiceImpl.requireOwnership` |
+| 唯一索引和逻辑删除为什么会打架？ | `FavoriteDO` / `ReadingHistoryDO` / `ContentCategoryMapper` 注释 |
+
+## 下一步
+
+1. **可选升级（计划 Day 61-70）**：Spring AI / RAG / AI 内容助手。
+2. 计划的 60 天主体（阶段 0-7）已全部完成。
 
 ## 文档
 
