@@ -256,10 +256,12 @@ components/article/
 │   └── BlockDivider.vue                ← 分隔
 ├── ArticleSidebar.vue                  ← 作者卡 / 数据 / 标签 / 相关文章 / 订阅 CTA
 ├── ArticleFooter.vue                   ← 本文完 / 标签 / 上一篇·下一篇
-└── ArticleComments.vue                 ← 评论区（输入 + 列表 + 分页）
+├── ArticleComments.vue                 ← 评论区（输入 + 列表 + 分页）
+└── ArticleEditor.vue                   ← 写作端编辑器（工具栏 + 编写/预览 + 语法速查）
 styles/article-system.scss              ← 全部 token + 各组件样式
 types/article.ts                        ← 结构化正文类型定义
 utils/articleParser.ts                  ← 纯文本/Markdown-lite → 结构化 blocks
+utils/articleMapper.ts                  ← ContentItem → Article 视图模型组装
 ```
 
 ---
@@ -334,6 +336,27 @@ $$E=mc^2$$           → formula
 **粗体**  `代码`  [文字](url) → 行内元素
 ```
 ```
+
+---
+
+## Step 11 · 写作端与审核端（与读者端共用同一条管线）
+
+排版规范不只作用于读者端。为避免"编辑器里一种样子、发布后另一种样子"，
+**创作、审核、阅读三端共用 `parseArticleBody` → `ArticleBody` 这一条渲染管线**：
+
+| 端 | 位置 | 与规范的关系 |
+|---|---|---|
+| 创作（发布/编辑） | `views/creator/EditContent.vue` → `ArticleEditor.vue` | 工具栏产出 Markdown-lite；「预览」标签页直接渲染 `ArticleBody`，与读者端像素级一致 |
+| 审核（管理端） | `views/admin/ContentReview.vue` 抽屉 | 默认「排版预览」渲染 `ArticleBody`，可切「源文」对照检查语法 |
+| 阅读（读者端） | `views/ContentDetail.vue` | 完整三栏 + 目录 + 侧栏 + 评论区 |
+
+### ArticleEditor 工具条规范
+- 采用 DM Mono 文字图标（`H2` `H3` `B` `` `code` `` `a↗` `>` `•` `1.` `☑` `{ }` `▦` `img` `:::` `@` `—`），
+  不做彩色图标堆砌；分组之间用 1px 竖线分隔。
+- 插入行为：`B` / 行内代码包裹选区（无选区时插入占位词），标题/引用/列表加行首前缀，
+  代码块/表格/提示框等块级结构自动补齐前后空行并把光标定位到可写位置。
+- 右侧固定显示 `字数 · 约 N min`，与读者端 Meta 行的阅读时长算法**同一个** `estimateReadTime`。
+- 「语法速查」默认折叠，列出全部 16 条语法，避免工具栏拥挤。
 
 ---
 
