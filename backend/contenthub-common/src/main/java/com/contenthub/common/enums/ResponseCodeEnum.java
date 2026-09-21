@@ -28,6 +28,13 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     CATEGORY_NAME_EXISTS("20008", "该分类名称已存在"),
     NOT_CONTENT_OWNER("20009", "只能操作自己发布的内容"),
     CATEGORY_IN_USE("20010", "该分类下还有内容，无法删除"),
+    CONTENT_STATUS_ILLEGAL("20011", "当前状态不允许该操作"),
+    ALREADY_FAVORITED("20012", "已经收藏过了"),
+    NOT_FAVORITED("20013", "尚未收藏该内容"),
+    PLAN_NOT_FOUND("20014", "订阅套餐不存在或已下架"),
+    PLAN_IN_USE("20015", "该套餐已有订阅记录，无法删除"),
+    NOT_CREATOR("20017", "还不是创作者，请先申请创作者身份"),
+    SUBSCRIPTION_NOT_FOUND("20018", "订阅记录不存在"),
     SELECT_FAIL("20003","查询数据库时出错");
     // 异常码
     private String errorCode;

@@ -6,7 +6,8 @@
         <h2>{{ isEdit ? '编辑内容' : '发布新内容' }}<br><em>{{ isEdit ? form.title || '未命名' : '写点什么' }}</em></h2>
       </div>
       <p class="heading-aside">
-        草稿不会出现在内容库中。<br>发布后立即可被访客浏览。
+        保存后为草稿，需在「我的内容」里提交审核。<br>
+        管理员通过后才会出现在内容库。
       </p>
     </div>
 
@@ -34,9 +35,9 @@
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
+          <!-- 阶段 3 起引入审核：这里只能存草稿或下架，发布必须由管理员审核通过 -->
           <el-select v-model="form.status">
             <el-option label="草稿" value="DRAFT" />
-            <el-option label="已发布" value="PUBLISHED" />
             <el-option label="已下架" value="OFFLINE" />
           </el-select>
         </el-form-item>
@@ -73,7 +74,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createContent, getMyContent, updateContent } from '@/api/content'
 import { listCategories } from '@/api/category'
-import type { Category, ContentPayload, ContentStatus } from '@/api/types'
+import type { Category, ContentPayload } from '@/api/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -170,7 +171,9 @@ onMounted(async () => {
           body: data.body ?? '',
           fileUrl: data.fileUrl ?? '',
           accessType: data.accessType,
-          status: data.status as ContentStatus,
+          // 编辑态只允许 DRAFT / OFFLINE；若当前是 PENDING/PUBLISHED/REJECTED，
+          // 回显为 DRAFT 以免把非法状态提交回后端（状态流转由专门接口控制）
+          status: data.status === 'OFFLINE' ? 'OFFLINE' : 'DRAFT',
         })
       } else {
         error.value = res.data.message || '内容不存在'

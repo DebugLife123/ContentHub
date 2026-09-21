@@ -10,49 +10,34 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+/** 订阅套餐（计划 Day 30：价格、周期、状态） */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@TableName("contents")
-public class ContentDO {
+@TableName("subscription_plans")
+public class SubscriptionPlanDO {
 
     @TableId(type = IdType.AUTO)
     private Long id;
 
-    /** 创作者ID -> users.id */
+    /** 套餐归属创作者 */
     private Long creatorId;
 
-    /** 分类ID -> content_category.id，计划表 7 要求 */
-    private Long categoryId;
+    private String name;
 
-    private String title;
+    private String description;
 
-    private String summary;
+    private BigDecimal price;
 
-    private String cover;
+    /** 有效天数，用于计算订阅到期时间 */
+    private Integer durationDays;
 
-    /** ARTICLE/TUTORIAL/EBOOK/VIDEO/PDF/CODE/PROMPT/DATASET/COLUMN */
-    private String contentType;
-
-    private String body;
-
-    private String fileUrl;
-
-    /** FREE 免费 / SUBSCRIBED 订阅可见 */
-    private String accessType;
-
-    /** DRAFT / PENDING / PUBLISHED / REJECTED / OFFLINE */
+    /** ACTIVE 上架 / INACTIVE 下架 */
     private String status;
-
-    private Integer viewCount;
-
-    private Integer likeCount;
-
-    /** 审核驳回原因，仅 status=REJECTED 时有值 */
-    private String rejectReason;
 
     @TableField("create_time")
     private LocalDateTime createTime;
@@ -60,7 +45,6 @@ public class ContentDO {
     @TableField("update_time")
     private LocalDateTime updateTime;
 
-    /** 逻辑删除：加了 @TableLogic 后查询自动过滤，deleteById 自动变为 UPDATE */
     @TableLogic
     @TableField("is_deleted")
     private Boolean deleted;

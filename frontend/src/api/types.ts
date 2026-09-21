@@ -45,7 +45,7 @@ export interface Category {
   createTime?: string
 }
 
-/** 内容状态；PENDING / REJECTED 属于阶段 3 的审核流转 */
+/** 内容状态流转（阶段 3）：DRAFT -> PENDING -> PUBLISHED / REJECTED，PUBLISHED -> OFFLINE */
 export type ContentStatus = 'DRAFT' | 'PENDING' | 'PUBLISHED' | 'REJECTED' | 'OFFLINE'
 
 export interface ContentItem {
@@ -58,18 +58,27 @@ export interface ContentItem {
   cover?: string | null
   /** ARTICLE/TUTORIAL/EBOOK/VIDEO/PDF/CODE/PROMPT/DATASET/COLUMN */
   contentType: string
+  /** 完整正文；被锁时为 null */
   body?: string | null
+  /** 被锁时的试读片段 */
+  bodyPreview?: string | null
+  /** 是否因订阅权限被锁 */
+  locked?: boolean
+  lockReason?: string | null
   fileUrl?: string | null
   /** FREE / SUBSCRIBED */
   accessType: string
   status: ContentStatus
+  /** 审核驳回原因 */
+  rejectReason?: string | null
   viewCount?: number | null
   likeCount?: number | null
+  favorited?: boolean
+  favoriteCount?: number
   createTime?: string
   updateTime?: string
 }
 
-/** 新增 / 编辑内容的提交体 */
 export interface ContentPayload {
   title: string
   summary?: string | null
@@ -79,7 +88,8 @@ export interface ContentPayload {
   body?: string | null
   fileUrl?: string | null
   accessType?: string
-  status?: ContentStatus
+  /** 编辑时只允许 DRAFT / OFFLINE；发布必须走审核 */
+  status?: 'DRAFT' | 'OFFLINE'
 }
 
 export interface ContentQuery {
@@ -95,4 +105,54 @@ export interface CategoryPayload {
   name: string
   sort?: number
   status?: 'ENABLED' | 'DISABLED'
+}
+
+/** 创作者资料（阶段 3 Day 20） */
+export interface CreatorProfile {
+  id: number
+  userId: number
+  displayName: string
+  intro?: string | null
+  verified?: boolean
+  subscriberCount?: number
+  contentCount?: number
+  publishedCount?: number
+  createTime?: string
+}
+
+/** 订阅套餐（阶段 4 Day 30） */
+export interface SubscriptionPlan {
+  id: number
+  creatorId: number
+  creatorName?: string | null
+  name: string
+  description?: string | null
+  price: number
+  durationDays: number
+  status: 'ACTIVE' | 'INACTIVE'
+  subscriberCount?: number
+  createTime?: string
+}
+
+export interface PlanPayload {
+  name: string
+  description?: string | null
+  price: number
+  durationDays: number
+  status?: 'ACTIVE' | 'INACTIVE'
+}
+
+/** 订阅记录（阶段 4 Day 37） */
+export interface Subscription {
+  id: number
+  planId: number
+  planName?: string | null
+  creatorId: number
+  creatorName?: string | null
+  startTime: string
+  endTime: string
+  status: 'ACTIVE' | 'EXPIRED' | 'CANCELED'
+  remainingDays: number
+  valid: boolean
+  createTime?: string
 }

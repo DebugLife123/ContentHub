@@ -86,6 +86,7 @@ CREATE TABLE `contents` (
   `status` VARCHAR(20) NOT NULL DEFAULT 'DRAFT' COMMENT '状态: DRAFT草稿 / PENDING待审核 / PUBLISHED已发布 / REJECTED已驳回 / OFFLINE已下架',
   `view_count` INT NOT NULL DEFAULT 0 COMMENT '浏览量',
   `like_count` INT NOT NULL DEFAULT 0 COMMENT '点赞数',
+  `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '审核驳回原因（仅 status=REJECTED 时有值）',
   `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted` TINYINT NOT NULL DEFAULT 0,
@@ -195,5 +196,18 @@ INSERT INTO `contents` (`creator_id`,`category_id`,`title`,`summary`,`cover`,`co
 (2, 2, 'AI 工作流 Prompt 图鉴', '把重复工作交给 AI，把时间还给真正重要的事。', NULL, 'PROMPT', '# Prompt Atlas\n\n42 个可以直接复用的工作流模板。', 'SUBSCRIBED', 'PUBLISHED', 860, 86),
 (2, 3, '全栈项目启动模板 2.0', '开箱即用的工程底座，专为快速验证想法而生。', NULL, 'CODE', '# Ship Faster\n\nVue 3 + Spring Boot 全栈项目启动模板。', 'FREE', 'PUBLISHED', 2140, 214),
 (2, 4, '从单体到分层：一次后端结构整理', '把 Controller 写成一锅粥之后，我是怎么收拾的。', NULL, 'ARTICLE', '# 分层的意义\n\nController 只做参数与响应，业务规则全部落在 Service。', 'FREE', 'PUBLISHED', 430, 41);
+
+-- ----------------------------
+-- 初始数据: 一条待审核内容（便于直接演示管理端审核流程）
+-- ----------------------------
+INSERT INTO `contents` (`creator_id`,`category_id`,`title`,`summary`,`content_type`,`body`,`access_type`,`status`) VALUES
+(2, 4, '待审核：一次线上事故的复盘', '还在等管理员审核，未发布。', 'ARTICLE', '# 事故复盘\n\n这份内容当前处于 PENDING 状态，通过后才会出现在内容库。', 'SUBSCRIBED', 'PENDING');
+
+-- ----------------------------
+-- 初始数据: 订阅套餐（验收要求能创建 Pro / Premium 套餐）
+-- ----------------------------
+INSERT INTO `subscription_plans` (`creator_id`,`name`,`description`,`price`,`duration_days`,`status`) VALUES
+(2, 'Pro 月度会员', '解锁该创作者的全部订阅内容，适合先试一个月。', 29.00, 30, 'ACTIVE'),
+(2, 'Premium 年度会员', '一次性解锁一年，相当于只付 10 个月。', 299.00, 365, 'ACTIVE');
 
 SET FOREIGN_KEY_CHECKS = 1;

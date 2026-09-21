@@ -61,12 +61,31 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Transactional
     public Response<CategoryVO> create(CategoryReqVO req) {
-        ensureNameAvailable(req.getName(), null);
+        String name = req.getName().trim();
+        int sort = req.getSort() == null ? 0 : req.getSort();
+        String status = req.getStatus() == null ? "ENABLED" : req.getStatus();
+
+        // 唯一索引 uk_name 不区分是否逻辑删除，所以要先看「含已删除」的记录：
+        // 命中仍在用的 -> 报重名；命中已删除的 -> 复活它，否则 INSERT 会撞唯一键
+        ContentCategoryDO existing = categoryMapper.findByNameIncludingDeleted(name);
+        if (existing != null) {
+            if (!Boolean.TRUE.equals(existing.getDeleted())) {
+                throw new BizException(ResponseCodeEnum.CATEGORY_NAME_EXISTS);
+            }
+            categoryMapper.revive(existing.getId(), sort, status);
+            return Response.success(CategoryVO.builder()
+                    .id(existing.getId())
+                    .name(name)
+                    .sort(sort)
+                    .status(status)
+                    .contentCount(0L)
+                    .build());
+        }
 
         ContentCategoryDO category = ContentCategoryDO.builder()
-                .name(req.getName().trim())
-                .sort(req.getSort() == null ? 0 : req.getSort())
-                .status(req.getStatus() == null ? "ENABLED" : req.getStatus())
+                .name(name)
+                .sort(sort)
+                .status(status)
                 .build();
 
         categoryMapper.insert(category);
@@ -87,11 +106,18 @@ public class CategoryServiceImpl implements CategoryService {
         if (Objects.isNull(existing)) {
             throw new BizException(ResponseCodeEnum.CATEGORY_NOT_FOUND);
         }
-        ensureNameAvailable(req.getName(), id);
+
+        // 同样要含已删除行一起看：改名撞上一条已删除记录时，
+        // 只查未删除行会放过校验，随后 UPDATE 撞 uk_name
+        String name = req.getName().trim();
+        ContentCategoryDO sameName = categoryMapper.findByNameIncludingDeleted(name);
+        if (sameName != null && !Objects.equals(sameName.getId(), id)) {
+            throw new BizException(ResponseCodeEnum.CATEGORY_NAME_EXISTS);
+        }
 
         ContentCategoryDO update = ContentCategoryDO.builder()
                 .id(id)
-                .name(req.getName().trim())
+                .name(name)
                 .sort(req.getSort() == null ? existing.getSort() : req.getSort())
                 .status(req.getStatus() == null ? existing.getStatus() : req.getStatus())
                 .build();
@@ -123,18 +149,6 @@ public class CategoryServiceImpl implements CategoryService {
 
         categoryMapper.deleteById(id);
         return Response.success();
-    }
-
-    /** 名称唯一性校验（数据库有 uk_name，这里提前给出友好提示） */
-    private void ensureNameAvailable(String name, Long excludeId) {
-        LambdaQueryWrapper<ContentCategoryDO> query = new LambdaQueryWrapper<ContentCategoryDO>()
-                .eq(ContentCategoryDO::getName, name.trim());
-        if (excludeId != null) {
-            query.ne(ContentCategoryDO::getId, excludeId);
-        }
-        if (categoryMapper.selectCount(query) > 0) {
-            throw new BizException(ResponseCodeEnum.CATEGORY_NAME_EXISTS);
-        }
     }
 
     private Map<Long, Long> countPublishedByCategory() {

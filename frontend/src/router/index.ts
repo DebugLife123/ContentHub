@@ -8,9 +8,14 @@ import ContentDetail from '../views/ContentDetail.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Profile from '../views/Profile.vue'
+import Plans from '../views/subscription/Plans.vue'
+import MySubscriptions from '../views/subscription/MySubscriptions.vue'
 import CreatorDashboard from '../views/CreatorDashboard.vue'
+import CreatorProfile from '../views/creator/Profile.vue'
+import CreatorPlans from '../views/creator/Plans.vue'
 import EditContent from '../views/creator/EditContent.vue'
 import CategoryManage from '../views/admin/CategoryManage.vue'
+import ContentReview from '../views/admin/ContentReview.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -29,14 +34,32 @@ const routes: RouteRecordRaw[] = [
   { path: '/login', component: Login, meta: { title: '登录' } },
   { path: '/register', component: Register, meta: { title: '注册' } },
 
+  // ---------- 订阅方案（公开可看，购买需登录） ----------
+  { path: '/plans', component: Plans, meta: { title: '订阅方案' } },
+
   // ---------- 需要登录 ----------
   { path: '/profile', component: Profile, meta: { title: '个人中心', requiresAuth: true } },
+  {
+    path: '/subscriptions',
+    component: MySubscriptions,
+    meta: { title: '我的订阅', requiresAuth: true },
+  },
 
   // ---------- 创作者 ----------
   {
     path: '/creator',
     component: CreatorDashboard,
     meta: { title: '创作者工作台', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
+  },
+  {
+    path: '/creator/profile',
+    component: CreatorProfile,
+    meta: { title: '创作者资料', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
+  },
+  {
+    path: '/creator/plans',
+    component: CreatorPlans,
+    meta: { title: '订阅套餐管理', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
   {
     path: '/creator/contents/new',
@@ -50,6 +73,11 @@ const routes: RouteRecordRaw[] = [
   },
 
   // ---------- 管理员 ----------
+  {
+    path: '/admin/contents',
+    component: ContentReview,
+    meta: { title: '内容审核', requiresAuth: true, roles: ['ADMIN'] },
+  },
   {
     path: '/admin/categories',
     component: CategoryManage,
@@ -67,7 +95,7 @@ const router = createRouter({
 /**
  * 路由守卫（计划 Day 18）。
  *
- * <p>注意：这只是前端的体验层拦截，真正的权限由后端 Spring Security 决定。
+ * <p>这只是前端的体验层拦截，真正的权限由后端 Spring Security 决定。
  * 前端守卫可以被绕过（改 localStorage 即可），所以两边都必须做。</p>
  */
 router.beforeEach(async (to) => {

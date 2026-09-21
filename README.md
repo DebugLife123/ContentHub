@@ -44,12 +44,15 @@ ContentHub/
 │   └── contenthub-web/          # Web 启动模块：Controller / Service + 配置
 ├── frontend/                    # Vue3 + TypeScript + Vite 前端
 │   └── src/
-│       ├── api/                 # 接口封装与共享类型（auth / content / category / types）
+│       ├── api/                 # 接口封装与共享类型（auth / content / category / creator / plan / subscription / types）
 │       ├── stores/user.ts       # Pinia 登录态
 │       ├── router/index.ts      # 路由与守卫（requiresAuth / roles）
-│       └── views/               # 首页 / 内容库 / 详情 / 登录 / 注册 / 个人中心
-│           ├── creator/         # 创作者工作台、发布与编辑
-│           └── admin/           # 分类管理
+│       └── views/
+│           ├── Home.vue / ContentList.vue / ContentDetail.vue   # 首页 / 内容库 / 详情（试读与收藏）
+│           ├── Login.vue / Register.vue / Profile.vue           # 认证与个人中心（含我的收藏）
+│           ├── creator/         # 工作台（状态流转）、创作者资料、套餐管理、发布与编辑
+│           ├── admin/           # 内容审核、分类管理
+│           └── subscription/    # 订阅方案、我的订阅
 ├── docs/
 │   └── database.sql             # 数据库建表脚本 + 演示数据（同时作为 MySQL 容器初始化脚本）
 ├── scripts/                     # 本地开发启停脚本
@@ -70,14 +73,47 @@ ContentHub/
 | 阶段 0 | Day 1-4 | 环境、Git、项目骨架、数据库连接 | ✅ 已完成 |
 | 阶段 1 | Day 5-12 | Vue3 基础 + 用户/分类/内容基础 CRUD | ✅ 已完成（tag `v0.1`） |
 | 阶段 2 | Day 13-19 | Spring Security + JWT + Redis 登录权限 | ✅ 已完成 |
-| 阶段 3 | Day 20-29 | 内容中心：发布、详情、审核、权限访问 | ⬜ 未开始 |
-| 阶段 4 | Day 30-38 | 套餐、订阅、模拟支付、订阅到期 | ⬜ 未开始 |
+| 阶段 3 | Day 20-29 | 内容中心：发布、详情、审核、权限访问 | ✅ 已完成（tag `v0.2`） |
+| 阶段 4 | Day 30-38 | 套餐、订阅、模拟支付、订阅到期 | ✅ 已完成（tag `v0.2`） |
 | 阶段 5 | Day 39-47 | Redis 缓存、热门、搜索、收藏、评论、历史 | ⬜ 未开始 |
 | 阶段 6 | Day 48-55 | 创作者中心 + 管理后台 | ⬜ 未开始 |
 | 阶段 7 | Day 56-60 | 联调、异常处理、Docker、Nginx、部署 | ⬜ 未开始 |
 | 可选升级 | Day 61-70 | Spring AI / RAG / AI 内容助手 | ⬜ 未开始 |
 
-**结论：阶段 0 / 1 / 2 均已完成；下一步进入阶段 3（内容中心：状态流转、审核、按订阅判断访问权限）。**
+**结论：阶段 0-4 均已完成；下一步进入阶段 5（Redis 缓存、热门内容、浏览量 INCR、评论、阅读历史）。**
+
+### 阶段 3 与阶段 4 已完成
+
+计划这两阶段的验收标准与落实方式：
+
+| 阶段 | 计划验收标准 | 落实 |
+|---|---|---|
+| 3 | 创作者能发布内容 | `POST /api/contents` 落库为 DRAFT，`POST /api/contents/{id}/submit` 提交审核 |
+| 3 | 管理员能审核内容 | `POST /api/admin/contents/{id}/approve` / `reject`，配套审核页 |
+| 3 | 普通用户能浏览免费内容 | 免费内容对游客直接返回完整正文 |
+| 3 | 付费内容没有权限时只能看到预览信息 | `locked=true`、`body=null`、`fileUrl=null`，只给 `bodyPreview` |
+| 3 | 有订阅权限的用户能看到完整内容/访问地址 | 订阅生效后 `body` 与 `fileUrl` 一并返回 |
+| 4 | 能创建 Pro / Premium 套餐 | 种子里已含两个套餐，创作者也可在套餐管理页自助创建 |
+| 4 | 用户点击订阅后能模拟支付成功 | `POST /api/subscriptions/{planId}/pay/mock` |
+| 4 | 支付后生成订阅记录 | 事务内创建，`start/end` 按套餐 `duration_days` 计算 |
+| 4 | 订阅未过期时可以看付费内容 | 鉴权按 `status=ACTIVE 且 end_time > now` 判定 |
+| 4 | 订阅过期后重新变成无权限 | 到期即失权，不依赖定时任务翻转状态 |
+
+主要实现要点：
+
+- **内容状态机（Day 21）**：允许的流转写成一张表（`DRAFT/REJECTED/OFFLINE → PENDING → PUBLISHED/REJECTED`，`PUBLISHED → OFFLINE`），所有流转走同一个 `transition()` 入口。**引入审核后创作者不能再自发布**——`POST /contents` 强制 DRAFT，编辑接口显式拒绝 `PUBLISHED`，否则「审核」形同虚设。
+- **驳回原因**：`contents` 新增 `reject_reason`。注意 `updateById` 会忽略 null 字段，所以「清空驳回原因」必须走原生 `UPDATE`，否则重新提交后还会残留上一次的驳回理由。
+- **访问权限收敛在一处**：`ContentAccessService.decide()`，判定顺序为 免费 → 作者本人/管理员 → 有效订阅 → 否则只给试读。各 Controller 不再散落 if。
+- **订阅（Day 32-36）**：`subscriptions` 上冗余了 `creator_id`，鉴权时不必 join 套餐表；有效期按 `end_time > now` 实时判断，**过期立刻失权，不依赖定时任务**（定时任务漏跑或服务停一段时间都不会把过期订阅误判为有效）。对同一创作者的重复购买走**续期**（从原到期时间顺延，而不是从今天重算），因此不会产生两条并行订阅。
+- **创作者身份（Day 20）**：新增 `POST /api/creator/apply`，把 `users.role` 从 USER 升为 CREATOR 并建立 `creator_profiles`。没有这条路径的话，注册用户没有任何办法获得发布权限。
+
+### 两个顺手修掉的真实缺陷
+
+1. **逻辑删除 + 唯一索引互相冲突**（阶段 1 埋下、阶段 3 发现）：
+   - `favorites` 有 `uk_user_content`，而逻辑删除只是把 `is_deleted` 置 1、行仍占着唯一键 —— 「取消收藏 → 重新收藏」会在 INSERT 时撞唯一键报 500。收藏是轻量关系记录，改为**物理删除**。
+   - `content_category` 有 `uk_name`，同类问题：删掉一个分类后用同名再建会撞唯一键。改为建分类前先用原生 SQL 查「含已删除」的记录，命中已删除的就**复活**它。
+   - 通用教训：**只要表上有唯一索引，就不该对参与该索引的字段用逻辑删除**。
+2. **`remainingDays` 少一天**：原先用 `Duration.between(now, endTime).toDays()`，刚买 7 天套餐时因毫秒差返回 6，界面显示「剩余 6 天」。改为按日期差（`ChronoUnit.DAYS.between(localDate, localDate)`）计算。
 
 ### 阶段 1 与阶段 2 已完成
 
@@ -124,17 +160,18 @@ ContentHub/
 - **Redis 接入**：`spring.data.redis` 配置（Boot 3 前缀）、`RedisConfig`（key 用 String、value 用 JSON，便于 `redis-cli` 观察）、补充 `StringRedisTemplate`；
 - **前端 TypeScript**：`typescript` 5.9 + `vue-tsc`，`tsconfig.json`（`strict`，`allowJs` 渐进迁移），`vite.config.ts`，`npm run build` 已串入类型检查。
 
-### 阶段 3 及以后
+### 阶段 5 及以后
 
-阶段 3-7 与可选 AI 阶段均未开始。
+阶段 5-7 与可选 AI 阶段均未开始。
 
-已建表但**尚无对应代码**的有：`creator_profiles`、`subscription_plans`、`subscriptions`、`favorites`、`comments`；计划表 6 中标记为「建议」的 `reading_history` 尚未创建。
-
-内容状态目前只支持 `DRAFT` / `PUBLISHED` / `OFFLINE`，`PENDING` / `REJECTED` 的审核流转属于阶段 3（接口层已显式拒绝这两个值，避免出现没有审核流程却能把内容置为待审核的中间态）。
+已建表但**尚无对应代码**的有：`comments`；计划表 6 中标记为「建议」的 `reading_history` 尚未创建。
+Redis 目前只用于登录 token（阶段 2），计划阶段 5 的缓存、热门 ZSet、浏览量 INCR 尚未落地。
 
 ## 已实现接口
 
 所有接口统一以 `/api` 为前缀（`server.servlet.context-path`），与计划表 19 的约定一致。
+
+### 认证与用户
 
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
@@ -142,23 +179,70 @@ ContentHub/
 | POST | `/api/auth/login` | 公开 | 登录，返回 JWT；token 同时写入 Redis |
 | POST | `/api/auth/logout` | 登录 | 退出登录，从 Redis 删除 token 使其立即失效 |
 | GET | `/api/users/me` | 登录 | 当前登录用户信息 |
+| GET | `/api/users/me/favorites` | 登录 | 我的收藏 |
+
+### 分类
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
 | GET | `/api/categories` | 公开 | 分类列表（仅启用中） |
-| GET | `/api/categories/all` | ADMIN | 全部分类（含禁用，供管理页） |
-| POST | `/api/categories` | ADMIN | 新增分类 |
+| GET | `/api/categories/all` | ADMIN | 全部分类（含禁用） |
+| POST | `/api/categories` | ADMIN | 新增分类（同名已删除分类会被复活） |
 | PUT | `/api/categories/{id}` | ADMIN | 修改分类 |
 | DELETE | `/api/categories/{id}` | ADMIN | 删除分类（逻辑删除；分类下有内容时拒绝） |
-| GET | `/api/contents/page` | 公开 | 内容分页查询，支持 `categoryId` / `contentType` / `keyword` / `pageNum` / `pageSize` |
-| GET | `/api/contents/{id}` | 公开 | 内容详情（仅已发布，含正文） |
-| GET | `/api/contents/mine` | CREATOR / ADMIN | 我的内容（含草稿与下架），支持 `status` 筛选 |
-| GET | `/api/contents/mine/{id}` | CREATOR / ADMIN | 我的内容详情（不限状态，编辑草稿时回显） |
-| POST | `/api/contents` | CREATOR / ADMIN | 新增内容 |
-| PUT | `/api/contents/{id}` | CREATOR / ADMIN（仅本人） | 编辑内容 |
-| DELETE | `/api/contents/{id}` | CREATOR / ADMIN（仅本人） | 删除内容（逻辑删除） |
+
+### 内容
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/api/contents/page` | 公开 | 内容分页，支持 `categoryId` / `contentType` / `keyword` |
+| GET | `/api/contents/{id}` | 公开 | 内容详情；无订阅权限时 `locked=true` 且只返回 `bodyPreview` |
+| GET | `/api/contents/mine` | CREATOR / ADMIN | 我的内容（含全部状态），支持 `status` 筛选 |
+| GET | `/api/contents/mine/{id}` | CREATOR / ADMIN | 我的内容详情（不限状态，编辑回显） |
+| POST | `/api/contents` | CREATOR / ADMIN | 新增内容（一律落库为 `DRAFT`） |
+| PUT | `/api/contents/{id}` | 作者本人 / ADMIN | 编辑（状态只能选 `DRAFT` / `OFFLINE`） |
+| DELETE | `/api/contents/{id}` | 作者本人 / ADMIN | 删除（逻辑删除） |
+| POST | `/api/contents/{id}/submit` | 作者本人 / CREATOR | 提交审核：`DRAFT`/`REJECTED`/`OFFLINE` → `PENDING` |
+| POST | `/api/contents/{id}/offline` | 作者本人 / CREATOR | 下架：`PUBLISHED` → `OFFLINE` |
+| POST | `/api/contents/{id}/favorite` | 登录 | 收藏（重复收藏返回业务错误） |
+| DELETE | `/api/contents/{id}/favorite` | 登录 | 取消收藏（物理删除） |
+
+### 创作者
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| POST | `/api/creator/apply` | 登录 | 申请成为创作者（USER → CREATOR，并建立资料） |
+| GET | `/api/creator/profile` | CREATOR / ADMIN | 我的创作者资料 |
+| PUT | `/api/creator/profile` | CREATOR / ADMIN | 修改创作者资料 |
+| GET | `/api/creators/{userId}` | 公开 | 创作者公开资料 |
+
+### 管理端
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/api/admin/contents` | ADMIN | 内容列表（默认 `PENDING`，可按状态筛选） |
+| POST | `/api/admin/contents/{id}/approve` | ADMIN | 审核通过：`PENDING` → `PUBLISHED` |
+| POST | `/api/admin/contents/{id}/reject` | ADMIN | 审核驳回：`PENDING` → `REJECTED`，需填原因 |
 | POST | `/api/admin/test` | ADMIN | 脚手架自带的 hello 接口 |
 | GET | `/api/admin/redis/verify` | ADMIN | 阶段 0 验收用：写一个带 TTL 的 key 再读回 |
 
-> **`/api/contents/mine` 的匹配顺序**：Security 里「需要登录」的规则必须写在「公开 GET」规则之前，否则会被后者覆盖。
-> 同理，Spring MVC 优先匹配字面量路径，因此 `/contents/mine` 不会被 `/contents/{id}` 当成 `id="mine"`。
+### 订阅
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/api/plans` | 公开 | 已上架套餐 |
+| GET | `/api/plans/mine` | CREATOR / ADMIN | 我的套餐（含已下架） |
+| POST | `/api/plans` | CREATOR / ADMIN | 新增套餐 |
+| PUT | `/api/plans/{id}` | 所属创作者 / ADMIN | 修改套餐 |
+| DELETE | `/api/plans/{id}` | 所属创作者 / ADMIN | 删除套餐（已有订阅记录时拒绝） |
+| POST | `/api/subscriptions/{planId}/pay/mock` | 登录 | 模拟支付，创建或续期订阅 |
+| GET | `/api/subscriptions/my` | 登录 | 我的订阅 |
+
+> **两条容易踩的路径匹配规则**
+> 1. Security 的规则**自上而下先匹配先生效**：「需要登录」的规则必须写在「公开 GET」之前，否则 `/contents/mine` 会被 `GET /contents/**` 放行；`POST /contents/*/favorite` 也必须写在 `DELETE /contents/**` 之前，否则会被创作者角色规则拦掉。
+> 2. Spring MVC 优先匹配字面量路径，因此 `/contents/mine` 不会被 `/contents/{id}` 当成 `id="mine"`。
+>
+> `POST /creator/apply` 是普通用户唯一的提权入口，所以它在 Security 里是 `authenticated()` 而不是 `CREATOR`——`/creator/**` 的角色规则必须排在它后面。
 
 ## 演示账号
 
@@ -290,16 +374,55 @@ Invoke-RestMethod http://127.0.0.1:8084/api/auth/logout -Method Post -Headers @{
 docker exec contenthub-redis redis-cli exists "login:token:$token"   # 期望 0
 ```
 
+### 阶段 3 / 4 验收：订阅解锁与过期失权
+
+```powershell
+$login = Invoke-RestMethod http://127.0.0.1:8084/api/auth/login -Method Post `
+  -Body '{"username":"user","password":"123456"}' -ContentType 'application/json'
+$h = @{ Authorization = "Bearer $($login.data.token)" }
+
+# 1) 未订阅时：付费内容只给试读（body 为 null，locked 为 true）
+Invoke-RestMethod http://127.0.0.1:8084/api/contents/1 | Select-Object -ExpandProperty data |
+  Format-List id, accessType, locked, lockReason, body, bodyPreview
+
+# 2) 模拟支付（套餐 id 见 GET /api/plans）
+Invoke-RestMethod http://127.0.0.1:8084/api/subscriptions/1/pay/mock -Method Post -Headers $h |
+  Select-Object -ExpandProperty data | Format-List planName, startTime, endTime, remainingDays, valid
+
+# 3) 订阅后再看同一篇：locked=false 且 body 有值
+Invoke-RestMethod http://127.0.0.1:8084/api/contents/1 | Select-Object -ExpandProperty data |
+  Format-List locked, body
+
+# 4) 把到期时间改到昨天，验证「过期即失权」（不需要等 30 天）
+docker exec contenthub-mysql mysql --default-character-set=utf8mb4 -uroot -p123456 -D contenthub `
+  -e "UPDATE subscriptions SET end_time = DATE_SUB(NOW(), INTERVAL 1 DAY) WHERE user_id = 3;"
+Invoke-RestMethod http://127.0.0.1:8084/api/contents/1 | Select-Object -ExpandProperty data |
+  Format-List locked
+```
+
 ### 接口快速验证
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8084/api/contents/page | ConvertTo-Json -Depth 5
 Invoke-RestMethod http://127.0.0.1:8084/api/contents/1 | ConvertTo-Json -Depth 5
 Invoke-RestMethod http://127.0.0.1:8084/api/categories | ConvertTo-Json -Depth 5
+Invoke-RestMethod http://127.0.0.1:8084/api/plans | ConvertTo-Json -Depth 5
 ```
 
+### 五分钟演示流程（计划表 22 第 16 条）
+
+1. **注册**：`http://127.0.0.1:5175/#/register` 注册一个新账号 → 自动登录
+2. **提权**：个人中心点「申请成为创作者」→ 角色变为 CREATOR
+3. **发布**：创作者工作台 →「发布新内容」→ 保存（落库为草稿）
+4. **提交审核**：「我的内容」里点「提交审核」→ 状态变为待审核
+5. **审核**：用 `admin / 123456` 登录 →「内容审核」→ 通过（或驳回并填原因）
+6. **浏览**：退出登录，内容库里能看到刚发布的已发布内容；点进详情，付费内容只显示试读
+7. **订阅**：用 `user / 123456` 登录 →「订阅方案」→ 立即订阅（模拟支付）→ 回到详情已能看全文
+8. **收藏**：详情页点「收藏这份内容」→ 个人中心能看到收藏
+
 > **Windows PowerShell 5.1 提示**：`Invoke-RestMethod` 在响应未声明 `charset` 时会按 ISO-8859-1 解码，中文会显示成乱码；URL 里的中文也不会自动编码。
-> 上面的命令看结构没问题，但若要**断言中文内容**，请显式解码并编码参数：
+> 另外 `docker exec ... mysql` 的默认结果字符集是 `latin1`，读中文必须加 `--default-character-set=utf8mb4`，否则会看到 `??????`（这是读取端问题，库里存的是正确的 UTF-8）。
+> 若要**断言中文内容**，请显式解码并编码参数：
 > ```powershell
 > $resp = Invoke-WebRequest 'http://127.0.0.1:8084/api/contents/1' -UseBasicParsing
 > ([System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray()) | ConvertFrom-Json).data.title
@@ -309,11 +432,9 @@ Invoke-RestMethod http://127.0.0.1:8084/api/categories | ConvertTo-Json -Depth 5
 
 ## 下一步（严格按计划的阶段顺序）
 
-1. **阶段 3（Day 20-29）**：创作者资料（`creator_profiles` 目前只有表）、状态流转补齐 `PENDING` / `REJECTED`、管理员审核接口与审核页、按 `access_type` 与有效订阅判断内容访问权限（无权限时只返回预览）、收藏。
-2. **阶段 4（Day 30-38）**：订阅套餐、模拟支付、创建订阅并计算起止时间、访问内容时校验有效订阅、我的订阅页，打 tag `v0.2`。
-3. **阶段 5（Day 39-47）**：内容详情缓存、热门内容 ZSet、浏览量 INCR 与定时同步 MySQL、评论、阅读历史（`reading_history` 表待建）。
-4. **阶段 6（Day 48-55）**：创作者仪表盘增强、管理员用户/内容/评论/套餐管理、前端按角色动态显示菜单（分类管理页已完成）。
-5. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、Docker 构建前后端、扩展 `docker-compose.yml` 加入 backend + nginx、Nginx 反向代理、部署、整理截图，打 tag `v1.0`。
+1. **阶段 5（Day 39-47）**：内容详情 Redis 缓存与缓存失效、热门内容 ZSet、浏览量 INCR 与定时同步 MySQL、评论（`comments` 表已建待用）、阅读历史（`reading_history` 表待建）。
+2. **阶段 6（Day 48-55）**：创作者仪表盘增强（趋势图）、管理员用户管理、评论管理、套餐管理（分类管理与内容审核已完成）。
+3. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、Docker 构建前后端、扩展 `docker-compose.yml` 加入 backend + nginx、Nginx 反向代理、部署、整理截图，打 tag `v1.0`。
 
 ## 文档
 

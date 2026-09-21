@@ -18,14 +18,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Spring Security 6 配置（阶段 2：登录与权限）。
- *
- * <p>Security 6 起 {@code WebSecurityConfigurerAdapter} 已被移除，改为直接声明
- * {@link SecurityFilterChain} Bean；链式 DSL 改为 Lambda DSL，
- * {@code mvcMatchers} 被 {@code requestMatchers} 取代。</p>
+ * Spring Security 6 配置（阶段 2 角色授权 + 阶段 3/4 新接口）。
  *
  * <p>路径匹配是相对 {@code server.servlet.context-path} 的，因此这里写 {@code /contents}，
- * 而外部访问地址是 {@code /api/contents}。规则自上而下，先匹配先生效。</p>
+ * 而外部访问地址是 {@code /api/contents}。</p>
+ *
+ * <p><b>规则自上而下，先匹配先生效</b>，所以「需要登录」的规则必须写在
+ * 「公开 GET」之前，否则会被后者覆盖掉。</p>
  */
 @Configuration
 @EnableWebSecurity
@@ -40,9 +39,6 @@ public class WebSecurityConfig {
         this.deniedHandler = deniedHandler;
     }
 
-    /**
-     * 认证管理器：只使用「数据库用户名 + 密码」这一种方式。
-     */
     @Bean
     public AuthenticationManager authenticationManager(DaoAuthenticationProvider daoAuthenticationProvider) {
         return new ProviderManager(daoAuthenticationProvider);
@@ -71,13 +67,26 @@ public class WebSecurityConfig {
                         // ---------- 公开：认证接口 ----------
                         .requestMatchers(HttpMethod.POST, "/auth/login", "/auth/register").permitAll()
 
-                        // ---------- 需要登录（必须写在下面的公开 GET 规则之前，先匹配先生效） ----------
+                        // ---------- 需登录或更高角色（必须在下面「公开 GET」之前） ----------
                         .requestMatchers(HttpMethod.GET, "/contents/mine", "/contents/mine/**").hasAnyRole("CREATOR", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/categories/all").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/plans/mine").hasAnyRole("CREATOR", "ADMIN")
+                        // 申请创作者身份：普通用户也要能调，所以是 authenticated 而不是 CREATOR
+                        .requestMatchers(HttpMethod.POST, "/creator/apply").authenticated()
+                        // 收藏：登录即可，但必须写在 DELETE /contents/** 之前，否则会被创作者角色规则拦掉
+                        .requestMatchers(HttpMethod.POST, "/contents/*/favorite").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/contents/*/favorite").authenticated()
+                        // 状态流转：提交审核与下架都只限作者本人（Service 里再校验归属）
+                        .requestMatchers(HttpMethod.POST, "/contents/*/submit", "/contents/*/offline").hasAnyRole("CREATOR", "ADMIN")
+                        .requestMatchers("/users/me", "/users/me/**").authenticated()
+                        .requestMatchers("/auth/logout").authenticated()
+                        .requestMatchers("/subscriptions/**").authenticated()
 
-                        // ---------- 公开：内容与分类的读接口（游客可浏览） ----------
+                        // ---------- 公开读接口 ----------
                         .requestMatchers(HttpMethod.GET, "/contents", "/contents/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/categories").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/plans").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/creators/**").permitAll()
 
                         // ---------- 分类写操作仅管理员 ----------
                         .requestMatchers(HttpMethod.POST, "/categories").hasRole("ADMIN")
@@ -89,20 +98,22 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/contents/**").hasAnyRole("CREATOR", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/contents/**").hasAnyRole("CREATOR", "ADMIN")
 
-                        // ---------- 需要登录 ----------
-                        .requestMatchers("/users/me", "/auth/logout").authenticated()
+                        // ---------- 套餐写操作需要创作者或管理员（计划 Day 31） ----------
+                        .requestMatchers(HttpMethod.POST, "/plans").hasAnyRole("CREATOR", "ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/plans/**").hasAnyRole("CREATOR", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/plans/**").hasAnyRole("CREATOR", "ADMIN")
 
                         // ---------- 创作者后台 / 管理后台（计划 Day 55） ----------
                         .requestMatchers("/creator/**").hasAnyRole("CREATOR", "ADMIN")
                         .requestMatchers("/admin/**").hasRole("ADMIN")
 
-                        // ---------- 其余（API 文档、静态资源、脚手架接口）放行 ----------
+                        // ---------- 其余（API 文档、静态资源）放行 ----------
                         .anyRequest().permitAll())
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authEntryPoint) // 401：未登录 / token 失效
                         .accessDeniedHandler(deniedHandler))      // 403：已登录但角色不够
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 前后端分离，不建会话
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(tokenAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

@@ -5,9 +5,13 @@
         <p class="eyebrow">CREATOR STUDIO / OVERVIEW</p>
         <h1>你好，<em>{{ displayName }}。</em></h1>
       </div>
-      <el-button class="button button-dark" @click="$router.push('/creator/contents/new')">
-        发布新内容 <span>↗</span>
-      </el-button>
+      <div class="head-actions">
+        <el-button @click="$router.push('/creator/profile')">创作者资料</el-button>
+        <el-button @click="$router.push('/creator/plans')">订阅套餐</el-button>
+        <el-button class="button button-dark" @click="$router.push('/creator/contents/new')">
+          发布新内容 <span>↗</span>
+        </el-button>
+      </div>
     </div>
 
     <div class="metric-grid">
@@ -29,9 +33,7 @@
           style="width: 150px"
           @change="applyFilter"
         >
-          <el-option label="草稿" value="DRAFT" />
-          <el-option label="已发布" value="PUBLISHED" />
-          <el-option label="已下架" value="OFFLINE" />
+          <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
         </el-select>
       </div>
 
@@ -47,13 +49,15 @@
             <th>访问</th>
             <th>状态</th>
             <th>阅读</th>
-            <th>更新时间</th>
             <th>操作</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="item in items" :key="item.id">
-            <td class="cell-title">{{ item.title }}</td>
+            <td class="cell-title">
+              {{ item.title }}
+              <small v-if="item.rejectReason" class="reject-hint">驳回：{{ item.rejectReason }}</small>
+            </td>
             <td>{{ item.categoryName || '—' }}</td>
             <td>{{ item.accessType === 'FREE' ? '免费' : '订阅' }}</td>
             <td>
@@ -62,8 +66,10 @@
               </span>
             </td>
             <td>{{ item.viewCount || 0 }}</td>
-            <td class="cell-time">{{ item.updateTime || item.createTime || '—' }}</td>
             <td class="cell-actions">
+              <!-- 状态流转按计划 Day 21 的规则给出可用操作 -->
+              <a v-if="canSubmit(item.status)" @click.prevent="doSubmit(item)">提交审核</a>
+              <a v-if="item.status === 'PUBLISHED'" @click.prevent="doOffline(item)">下架</a>
               <a @click.prevent="$router.push(`/creator/contents/${item.id}/edit`)">编辑</a>
               <a class="danger" @click.prevent="handleDelete(item)">删除</a>
             </td>
@@ -88,7 +94,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { deleteContent, pageMyContents } from '@/api/content'
+import {
+  deleteContent, offlineContent, pageMyContents, submitContent,
+} from '@/api/content'
 import { useUserStore } from '@/stores/user'
 import type { ContentItem, ContentStatus } from '@/api/types'
 
@@ -101,33 +109,38 @@ const pageNum = ref(1)
 const pageSize = ref(10)
 const statusFilter = ref<ContentStatus | ''>('')
 
+const statusOptions = [
+  { label: '草稿', value: 'DRAFT' },
+  { label: '待审核', value: 'PENDING' },
+  { label: '已发布', value: 'PUBLISHED' },
+  { label: '已驳回', value: 'REJECTED' },
+  { label: '已下架', value: 'OFFLINE' },
+]
+
 const displayName = computed(
   () => userStore.userInfo?.nickname || userStore.userInfo?.username || '创作者'
 )
 
-/** 统计卡片改为基于真实数据计算，不再写死假数字 */
 const metrics = computed(() => {
-  const published = items.value.filter((i) => i.status === 'PUBLISHED')
+  const count = (s: string) => items.value.filter((i) => i.status === s).length
   const views = items.value.reduce((sum, i) => sum + (i.viewCount || 0), 0)
-  const likes = items.value.reduce((sum, i) => sum + (i.likeCount || 0), 0)
-  const drafts = items.value.filter((i) => i.status === 'DRAFT')
   return [
-    { label: '内容总数', value: String(total.value), change: `本页已发布 ${published.length} 篇` },
+    { label: '内容总数', value: String(total.value), change: `本页已发布 ${count('PUBLISHED')} 篇` },
+    { label: '待审核', value: String(count('PENDING')), change: '等待管理员处理' },
+    { label: '草稿 / 已驳回', value: `${count('DRAFT')} / ${count('REJECTED')}`, change: '需要继续完善' },
     { label: '阅读量', value: String(views), change: '本页内容合计' },
-    { label: '点赞数', value: String(likes), change: '本页内容合计' },
-    { label: '草稿', value: String(drafts.length), change: '本页待发布' },
   ]
 })
 
 const STATUS_LABELS: Record<string, string> = {
-  DRAFT: '草稿',
-  PENDING: '待审核',
-  PUBLISHED: '已发布',
-  REJECTED: '已驳回',
-  OFFLINE: '已下架',
+  DRAFT: '草稿', PENDING: '待审核', PUBLISHED: '已发布', REJECTED: '已驳回', OFFLINE: '已下架',
 }
 function statusLabel(status: string) {
   return STATUS_LABELS[status] ?? status
+}
+/** 与后端状态机一致：只有 DRAFT / REJECTED / OFFLINE 能提交审核 */
+function canSubmit(status: ContentStatus) {
+  return ['DRAFT', 'REJECTED', 'OFFLINE'].includes(status)
 }
 
 async function load() {
@@ -154,23 +167,39 @@ function applyFilter() {
   pageNum.value = 1
   load()
 }
-
 function handlePageChange(page: number) {
   pageNum.value = page
   load()
 }
 
+async function doSubmit(item: ContentItem) {
+  const res = await submitContent(item.id)
+  if (res.data.success) {
+    ElMessage.success('已提交审核，等待管理员处理')
+    load()
+  } else {
+    ElMessage.error(res.data.message || '提交失败')
+  }
+}
+
+async function doOffline(item: ContentItem) {
+  const res = await offlineContent(item.id)
+  if (res.data.success) {
+    ElMessage.success('已下架')
+    load()
+  } else {
+    ElMessage.error(res.data.message || '下架失败')
+  }
+}
+
 async function handleDelete(item: ContentItem) {
   try {
     await ElMessageBox.confirm(`确定删除《${item.title}》吗？`, '删除确认', {
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-      type: 'warning',
+      confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
     })
   } catch {
-    return // 用户取消
+    return
   }
-
   const res = await deleteContent(item.id)
   if (res.data.success) {
     ElMessage.success('已删除')
@@ -184,6 +213,10 @@ onMounted(load)
 </script>
 
 <style scoped>
+.head-actions {
+  display: flex;
+  gap: 10px;
+}
 .studio-panel {
   border: 1px solid var(--line);
   padding: 25px;
@@ -207,12 +240,15 @@ onMounted(load)
   vertical-align: middle;
 }
 .cell-title {
-  max-width: 260px;
+  max-width: 280px;
   font-weight: 600;
 }
-.cell-time {
+.reject-hint {
+  display: block;
+  margin-top: 5px;
+  color: #c54a32;
   font: 10px 'DM Mono', monospace;
-  color: var(--muted);
+  font-weight: 400;
 }
 .cell-actions a {
   margin-right: 12px;
@@ -227,17 +263,11 @@ onMounted(load)
   padding: 2px 7px;
   border: 1px solid var(--line);
 }
-.status-published {
-  color: #68863d;
-  border-color: #68863d;
-}
-.status-draft {
-  color: var(--muted);
-}
-.status-offline {
-  color: #c54a32;
-  border-color: #c54a32;
-}
+.status-published { color: #68863d; border-color: #68863d; }
+.status-pending { color: #c07a1f; border-color: #c07a1f; }
+.status-rejected { color: #c54a32; border-color: #c54a32; }
+.status-offline { color: #c54a32; border-color: #c54a32; }
+.status-draft { color: var(--muted); }
 .pager {
   display: flex;
   justify-content: flex-end;

@@ -33,6 +33,8 @@ public class ContentListVO implements Serializable {
     private String accessType;
     /** DRAFT / PENDING / PUBLISHED / REJECTED / OFFLINE */
     private String status;
+    /** 审核驳回原因，仅 status=REJECTED 时有值 */
+    private String rejectReason;
     private Integer viewCount;
     private Integer likeCount;
     private LocalDateTime createTime;
