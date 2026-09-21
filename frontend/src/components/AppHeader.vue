@@ -11,9 +11,7 @@
         <RouterLink to="/">发现内容</RouterLink>
         <RouterLink to="/contents">内容库</RouterLink>
         <RouterLink to="/plans">订阅方案</RouterLink>
-        <!-- 两块新板块：先占位，页面见 views/ComingSoon.vue -->
         <RouterLink to="/skills">Skill 商城</RouterLink>
-        <RouterLink to="/workflows">AI Workflow</RouterLink>
         <RouterLink v-if="canCreate" to="/creator">创作者工作台</RouterLink>
 
         <el-dropdown v-if="isAdmin" trigger="hover" @command="go">

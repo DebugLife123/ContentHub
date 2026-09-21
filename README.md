@@ -50,7 +50,6 @@ ContentHub/
 │       └── views/
 │           ├── Home.vue / ContentList.vue / ContentDetail.vue   # 首页（含热门榜）/ 内容库（栏目横排）/ 详情（试读 + 评论 + 收藏）
 │           ├── Login.vue / Register.vue / Profile.vue           # 认证与个人中心（收藏 / 阅读历史 / 我的评论）
-│           ├── ComingSoon.vue   # AI Workflow 占位页（读 route.meta 渲染）
 │           ├── skill/           # Skill 商城：SkillList.vue（分类 + 星数排序）、SkillDetail.vue
 │           ├── creator/         # 工作台（统计 + 状态流转）、创作者资料、套餐管理、发布与编辑
 │           ├── admin/           # 内容审核、评论管理、用户管理、分类管理、套餐管理
@@ -242,14 +241,6 @@ ContentHub/
 > 星数、大小、更新时间参考真实仓库量级但不是实时数据。
 > 唯一的读取入口是 `src/api/skill.ts`，后端有 Skill 表与接口后把函数体换成 `api.get(...)` 即可，视图层不用改。
 > 另外要注意：**前端的锁定判断只是体验层**，和内容库一样，真正的权限必须由服务端决定。
-
-### 仍为占位的板块
-
-`/workflows`（AI Workflow）仍是占位页，由 `views/ComingSoon.vue` 渲染，文案与要点列表写在 `router/index.ts` 的 `meta` 里：
-
-| 路径 | 板块 | 规划要点 |
-|---|---|---|
-| `/workflows` | AI Workflow | 节点式流程编排、定时与事件触发、运行日志与重试、产出一键发布到内容库 |
 
 ## 已实现接口
 

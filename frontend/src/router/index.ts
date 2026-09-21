@@ -19,7 +19,6 @@ import ContentReview from '../views/admin/ContentReview.vue'
 import AdminUsers from '../views/admin/Users.vue'
 import AdminComments from '../views/admin/Comments.vue'
 import AdminPlans from '../views/admin/Plans.vue'
-import ComingSoon from '../views/ComingSoon.vue'
 import SkillList from '../views/skill/SkillList.vue'
 import SkillDetail from '../views/skill/SkillDetail.vue'
 
@@ -30,10 +29,6 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     /** 允许访问的角色，未设置表示登录即可 */
     roles?: Role[]
-    /** 占位页用：小标题与说明文案 */
-    eyebrow?: string
-    description?: string
-    highlights?: string[]
   }
 }
 
@@ -50,19 +45,6 @@ const routes: RouteRecordRaw[] = [
   // ---------- Skill 商城（数据仍是 mock，见 api/skill.ts） ----------
   { path: '/skills', component: SkillList, meta: { title: 'Skill 商城' } },
   { path: '/skills/:id', component: SkillDetail, meta: { title: 'Skill 详情' } },
-
-  // ---------- AI Workflow：先占位，功能待实现 ----------
-  {
-    path: '/workflows',
-    component: ComingSoon,
-    meta: {
-      title: 'AI Workflow',
-      eyebrow: 'AI WORKFLOW',
-      description:
-        '把多个 Skill 串成一条可执行的流水线：输入素材、自动加工、产出成品，全过程可视化编排。',
-      highlights: ['节点式流程编排', '定时与事件触发', '运行日志与重试', '产出一键发布到内容库'],
-    },
-  },
 
   // ---------- 需要登录 ----------
   { path: '/profile', component: Profile, meta: { title: '个人中心', requiresAuth: true } },
