@@ -1,5 +1,7 @@
 import api from '../axios'
-import type { ApiResponse, ContentItem, ContentPayload, ContentQuery, PageResult } from './types'
+import type {
+  ApiResponse, Comment, ContentItem, ContentPayload, ContentQuery, PageResult, ReadingHistory,
+} from './types'
 
 /** 公开分页：仅已发布内容 */
 export function pageContents(query: ContentQuery = {}) {
@@ -72,6 +74,43 @@ export function unfavoriteContent(id: number) {
 
 export function myFavorites(pageNum = 1, pageSize = 9) {
   return api.get<ApiResponse<PageResult<ContentItem>>>('/users/me/favorites', {
+    params: { pageNum, pageSize },
+  })
+}
+
+// ------------------------------------------------- 阶段 5：热门 / 评论 / 阅读历史
+
+/** 热门内容（Redis ZSet 排名） */
+export function hotContents(limit = 6) {
+  return api.get<ApiResponse<ContentItem[]>>('/contents/hot', { params: { limit } })
+}
+
+export function listComments(contentId: number, pageNum = 1, pageSize = 10) {
+  return api.get<ApiResponse<PageResult<Comment>>>(
+    `/contents/${contentId}/comments`, { params: { pageNum, pageSize } })
+}
+
+export function createComment(contentId: number, body: string) {
+  return api.post<ApiResponse<Comment>>(`/contents/${contentId}/comments`, { body })
+}
+
+export function deleteComment(commentId: number) {
+  return api.delete<ApiResponse<void>>(`/comments/${commentId}`)
+}
+
+/** 回传阅读进度，用于「最近阅读」的进度条 */
+export function updateReadProgress(contentId: number, progress: number) {
+  return api.put<ApiResponse<void>>(`/contents/${contentId}/progress`, { progress })
+}
+
+export function myHistory(pageNum = 1, pageSize = 10) {
+  return api.get<ApiResponse<PageResult<ReadingHistory>>>('/users/me/history', {
+    params: { pageNum, pageSize },
+  })
+}
+
+export function myComments(pageNum = 1, pageSize = 10) {
+  return api.get<ApiResponse<PageResult<Comment>>>('/users/me/comments', {
     params: { pageNum, pageSize },
   })
 }

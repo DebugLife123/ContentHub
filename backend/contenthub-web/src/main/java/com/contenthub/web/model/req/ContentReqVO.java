@@ -35,6 +35,7 @@ public class ContentReqVO implements Serializable {
     /** FREE / SUBSCRIBED；为空时新增默认 FREE */
     private String accessType;
 
-    /** DRAFT / PUBLISHED / OFFLINE；为空时新增默认 DRAFT */
-    private String status;
+    // 刻意没有 status 字段：新建一律落库为 DRAFT，状态流转只能走
+    // /contents/{id}/submit、/offline 与管理员 /admin/contents/{id}/approve、/reject。
+    // 允许在新增/编辑里传状态会让「审核」形同虚设。
 }

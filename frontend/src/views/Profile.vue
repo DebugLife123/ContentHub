@@ -70,6 +70,44 @@
           </article>
         </div>
       </section>
+
+      <!-- 阅读历史（阶段 5 Day 46） -->
+      <section class="favorites">
+        <div class="panel-head">
+          <h3>阅读历史</h3>
+          <span>{{ historyTotal }} 篇</span>
+        </div>
+        <div v-if="!history.length" class="empty-state">还没有阅读记录。</div>
+        <ul v-else class="history-list">
+          <li v-for="h in history" :key="h.id" @click="$router.push(`/content/${h.contentId}`)">
+            <div class="history-main">
+              <strong>{{ h.contentTitle }}</strong>
+              <small>{{ h.contentType }} · {{ h.lastReadTime }}</small>
+            </div>
+            <div class="progress-bar"><i :style="{ width: `${h.progress}%` }"></i></div>
+            <span class="history-pct">{{ h.progress }}%</span>
+          </li>
+        </ul>
+      </section>
+
+      <!-- 我的评论（阶段 5 Day 45） -->
+      <section class="favorites">
+        <div class="panel-head">
+          <h3>我的评论</h3>
+          <span>{{ commentTotal }} 条</span>
+        </div>
+        <div v-if="!comments.length" class="empty-state">还没有发表过评论。</div>
+        <ul v-else class="my-comment-list">
+          <li v-for="c in comments" :key="c.id">
+            <div class="comment-head">
+              <RouterLink :to="`/content/${c.contentId}`">{{ c.contentTitle || ('内容 #' + c.contentId) }}</RouterLink>
+              <span>{{ c.createTime }}</span>
+            </div>
+            <p>{{ c.body }}</p>
+            <a class="comment-del" @click.prevent="removeMyComment(c)">删除</a>
+          </li>
+        </ul>
+      </section>
     </template>
   </div>
 </template>
@@ -77,11 +115,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { applyCreator } from '@/api/creator'
-import { myFavorites } from '@/api/content'
+import { deleteComment, myComments, myFavorites, myHistory } from '@/api/content'
 import { mySubscriptions } from '@/api/subscription'
 import { useUserStore } from '@/stores/user'
-import type { ContentItem } from '@/api/types'
+import type { Comment, ContentItem, ReadingHistory } from '@/api/types'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -92,6 +131,24 @@ const applyMessage = ref('')
 const favorites = ref<ContentItem[]>([])
 const favoriteTotal = ref(0)
 const activeSubCount = ref(0)
+const history = ref<ReadingHistory[]>([])
+const historyTotal = ref(0)
+const comments = ref<Comment[]>([])
+const commentTotal = ref(0)
+
+async function removeMyComment(c: Comment) {
+  const res = await deleteComment(c.id)
+  if (res.data.success) {
+    ElMessage.success('已删除')
+    const again = await myComments(1, 10)
+    if (again.data.success) {
+      comments.value = again.data.data.list
+      commentTotal.value = again.data.data.total
+    }
+  } else {
+    ElMessage.error(res.data.message || '删除失败')
+  }
+}
 
 const userInfo = computed(() => userStore.userInfo)
 const displayName = computed(() => userStore.userInfo?.nickname || userStore.userInfo?.username || '访客')
@@ -156,6 +213,20 @@ onMounted(async () => {
       activeSubCount.value = subs.data.data.list.filter((s) => s.valid).length
     }
   } catch { /* 忽略 */ }
+  try {
+    const his = await myHistory(1, 10)
+    if (his.data.success) {
+      history.value = his.data.data.list
+      historyTotal.value = his.data.data.total
+    }
+  } catch { /* 忽略 */ }
+  try {
+    const cms = await myComments(1, 10)
+    if (cms.data.success) {
+      comments.value = cms.data.data.list
+      commentTotal.value = cms.data.data.total
+    }
+  } catch { /* 忽略 */ }
   loading.value = false
 })
 </script>
@@ -189,6 +260,25 @@ onMounted(async () => {
 .fav-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .fav-foot { display: flex; justify-content: space-between; margin-top: 14px; font: 10px 'DM Mono', monospace; color: var(--muted); }
 .success-text { color: #68863d; font-size: 12px; margin-top: 12px; }
+.history-list, .my-comment-list { list-style: none; margin: 20px 0 0; padding: 0; }
+.history-list li {
+  display: grid;
+  grid-template-columns: 1fr 140px 44px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.history-main strong { display: block; font-size: 14px; }
+.history-main small { display: block; margin-top: 5px; font: 10px 'DM Mono', monospace; color: var(--muted); }
+.progress-bar { height: 4px; background: var(--line); }
+.progress-bar i { display: block; height: 100%; background: var(--orange); }
+.history-pct { font: 10px 'DM Mono', monospace; color: var(--muted); text-align: right; }
+.my-comment-list li { position: relative; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.my-comment-list .comment-head { display: flex; justify-content: space-between; font: 10px 'DM Mono', monospace; color: var(--muted); }
+.my-comment-list p { margin: 8px 0 0; line-height: 1.7; font-size: 14px; }
+.my-comment-list .comment-del { position: absolute; right: 0; bottom: 12px; font: 10px 'DM Mono', monospace; color: #c54a32; cursor: pointer; text-decoration: underline; }
 @media (max-width: 800px) {
   .profile-grid { grid-template-columns: 1fr; }
 }

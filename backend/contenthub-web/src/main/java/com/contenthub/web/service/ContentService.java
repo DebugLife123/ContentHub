@@ -7,10 +7,15 @@ import com.contenthub.web.model.req.ContentReqVO;
 import com.contenthub.web.model.vo.ContentDetailVO;
 import com.contenthub.web.model.vo.ContentListVO;
 
+import java.util.List;
+
 public interface ContentService {
 
     /** 公开分页：仅已发布内容 */
     Response<PageResponse<ContentListVO>> pagePublished(ContentPageReqVO req);
+
+    /** 热门内容（阶段 5 Day 41：读取 Redis ZSet 排名） */
+    Response<List<ContentListVO>> hotContents(int limit);
 
     /** 创作者查看自己的内容（含草稿/待审核/驳回/下架） */
     Response<PageResponse<ContentListVO>> pageMine(ContentPageReqVO req);

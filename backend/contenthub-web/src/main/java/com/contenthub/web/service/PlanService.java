@@ -19,4 +19,7 @@ public interface PlanService {
     Response<SubscriptionPlanVO> update(Long id, PlanReqVO req);
 
     Response<Void> delete(Long id);
+
+    /** 管理端：全平台套餐（阶段 6 Day 50 的套餐管理） */
+    Response<List<SubscriptionPlanVO>> listAll();
 }

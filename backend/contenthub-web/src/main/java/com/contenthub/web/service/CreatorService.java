@@ -2,6 +2,7 @@ package com.contenthub.web.service;
 
 import com.contenthub.common.utils.Response;
 import com.contenthub.web.model.req.CreatorProfileReqVO;
+import com.contenthub.web.model.vo.CreatorDashboardVO;
 import com.contenthub.web.model.vo.CreatorProfileVO;
 
 public interface CreatorService {
@@ -21,4 +22,7 @@ public interface CreatorService {
 
     /** 公开的创作者资料 */
     Response<CreatorProfileVO> publicProfile(Long userId);
+
+    /** 创作者仪表盘统计（阶段 6 Day 48） */
+    Response<CreatorDashboardVO> dashboard();
 }

@@ -2,6 +2,7 @@ package com.contenthub.web.controller;
 
 import com.contenthub.common.utils.Response;
 import com.contenthub.web.model.req.CreatorProfileReqVO;
+import com.contenthub.web.model.vo.CreatorDashboardVO;
 import com.contenthub.web.model.vo.CreatorProfileVO;
 import com.contenthub.web.service.CreatorService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +49,12 @@ public class CreatorController {
     @Operation(summary = "修改创作者资料")
     public Response<CreatorProfileVO> updateProfile(@RequestBody @Validated CreatorProfileReqVO req) {
         return creatorService.updateProfile(req);
+    }
+
+    @GetMapping("/creator/dashboard")
+    @Operation(summary = "创作者仪表盘统计（内容数 / 阅读量 / 收藏量 / 订阅人数）")
+    public Response<CreatorDashboardVO> dashboard() {
+        return creatorService.dashboard();
     }
 
     @GetMapping("/creators/{userId}")

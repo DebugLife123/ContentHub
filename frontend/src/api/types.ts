@@ -75,6 +75,10 @@ export interface ContentItem {
   likeCount?: number | null
   favorited?: boolean
   favoriteCount?: number
+  /** 评论数（阶段 5） */
+  commentCount?: number
+  /** 热度分（阶段 5：Redis ZSet 分数） */
+  hotScore?: number
   createTime?: string
   updateTime?: string
 }
@@ -88,8 +92,7 @@ export interface ContentPayload {
   body?: string | null
   fileUrl?: string | null
   accessType?: string
-  /** 编辑时只允许 DRAFT / OFFLINE；发布必须走审核 */
-  status?: 'DRAFT' | 'OFFLINE'
+  // 刻意没有 status：新建一律是草稿，状态流转走 submit / offline / 管理员审核接口
 }
 
 export interface ContentQuery {
@@ -155,4 +158,56 @@ export interface Subscription {
   remainingDays: number
   valid: boolean
   createTime?: string
+}
+
+/** 评论（阶段 5 Day 45） */
+export interface Comment {
+  id: number
+  contentId: number
+  contentTitle?: string | null
+  userId: number
+  username?: string | null
+  /** NORMAL 正常 / HIDDEN 已隐藏 */
+  status: 'NORMAL' | 'HIDDEN'
+  body: string
+  canDelete?: boolean
+  createTime?: string
+}
+
+/** 阅读历史（阶段 5 Day 46） */
+export interface ReadingHistory {
+  id: number
+  contentId: number
+  contentTitle?: string | null
+  contentType?: string | null
+  accessType?: string | null
+  progress: number
+  lastReadTime?: string
+}
+
+/** 管理端用户（阶段 6 Day 51） */
+export interface AdminUser {
+  id: number
+  username: string
+  nickname?: string | null
+  email?: string | null
+  role: Role
+  status: 'ENABLED' | 'DISABLED'
+  contentCount?: number
+  createTime?: string
+}
+
+/** 创作者仪表盘统计（阶段 6 Day 48） */
+export interface CreatorDashboard {
+  contentCount: number
+  publishedCount: number
+  draftCount: number
+  pendingCount: number
+  rejectedCount: number
+  offlineCount: number
+  totalViews: number
+  totalFavorites: number
+  totalComments: number
+  subscriberCount: number
+  planCount: number
 }

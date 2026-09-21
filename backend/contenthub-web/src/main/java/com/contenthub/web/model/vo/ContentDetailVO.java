@@ -62,4 +62,10 @@ public class ContentDetailVO implements Serializable {
 
     /** 收藏数 */
     private Long favoriteCount;
+
+    /** 评论数 */
+    private Long commentCount;
+
+    /** 热度分（阶段 5 Day 41 的 Redis ZSet 分数） */
+    private Double hotScore;
 }

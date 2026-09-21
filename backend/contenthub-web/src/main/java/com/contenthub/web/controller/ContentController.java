@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -37,6 +38,13 @@ public class ContentController {
     public ContentController(ContentService contentService, FavoriteService favoriteService) {
         this.contentService = contentService;
         this.favoriteService = favoriteService;
+    }
+
+    @GetMapping("/hot")
+    @Operation(summary = "热门内容（阶段 5：读取 Redis ZSet 排名，公开）")
+    public Response<java.util.List<ContentListVO>> hot(@RequestParam(defaultValue = "6") int limit) {
+        // 限制上限，避免一次拉太多
+        return contentService.hotContents(Math.max(1, Math.min(limit, 20)));
     }
 
     @GetMapping("/page")

@@ -113,6 +113,13 @@ public class PlanServiceImpl implements PlanService {
         return Response.success();
     }
 
+    @Override
+    public Response<List<SubscriptionPlanVO>> listAll() {
+        List<SubscriptionPlanDO> plans = planMapper.selectList(new LambdaQueryWrapper<SubscriptionPlanDO>()
+                .orderByDesc(SubscriptionPlanDO::getId));
+        return Response.success(toVOList(plans));
+    }
+
     // ------------------------------------------------------------------ 内部方法
 
     private SubscriptionPlanDO requirePlan(Long id) {

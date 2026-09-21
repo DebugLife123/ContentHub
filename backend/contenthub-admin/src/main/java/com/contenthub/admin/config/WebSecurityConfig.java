@@ -76,6 +76,10 @@ public class WebSecurityConfig {
                         // 收藏：登录即可，但必须写在 DELETE /contents/** 之前，否则会被创作者角色规则拦掉
                         .requestMatchers(HttpMethod.POST, "/contents/*/favorite").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/contents/*/favorite").authenticated()
+                        // 评论与阅读进度：登录即可
+                        .requestMatchers(HttpMethod.POST, "/contents/*/comments").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/contents/*/progress").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/comments/*").authenticated()
                         // 状态流转：提交审核与下架都只限作者本人（Service 里再校验归属）
                         .requestMatchers(HttpMethod.POST, "/contents/*/submit", "/contents/*/offline").hasAnyRole("CREATOR", "ADMIN")
                         .requestMatchers("/users/me", "/users/me/**").authenticated()

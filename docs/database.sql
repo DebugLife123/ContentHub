@@ -26,6 +26,7 @@ CREATE TABLE `users` (
   `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
   `bio` VARCHAR(500) DEFAULT NULL COMMENT '个人简介',
   `role` VARCHAR(20) NOT NULL DEFAULT 'USER' COMMENT '角色: USER普通用户 / CREATOR创作者 / ADMIN管理员',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'ENABLED' COMMENT '状态: ENABLED正常 / DISABLED已禁用（禁用后无法登录）',
   `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   `is_deleted` TINYINT NOT NULL DEFAULT 0 COMMENT '逻辑删除: 0未删除 1已删除',
@@ -167,6 +168,25 @@ CREATE TABLE `comments` (
   PRIMARY KEY (`id`),
   KEY `idx_content` (`content_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评论表';
+
+-- ----------------------------
+-- 9. 阅读记录表（计划表 6 列为「建议」，阶段 5 Day 46 使用）
+-- ----------------------------
+DROP TABLE IF EXISTS `reading_history`;
+CREATE TABLE `reading_history` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户ID',
+  `content_id` BIGINT NOT NULL COMMENT '内容ID',
+  `progress` INT NOT NULL DEFAULT 0 COMMENT '阅读进度百分比 0-100',
+  `last_read_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '最后阅读时间',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_content` (`user_id`,`content_id`),
+  KEY `idx_user` (`user_id`),
+  KEY `idx_content` (`content_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='阅读记录表';
 
 -- ----------------------------
 -- 初始数据: 管理员 + 测试用户 (密码均为 123456, BCrypt)

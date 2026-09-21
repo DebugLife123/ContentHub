@@ -6,13 +6,25 @@
         <span>Content<span>Hub</span></span>
       </RouterLink>
 
+      <!-- 计划 Day 55：不同角色看到不同菜单 -->
       <nav class="main-nav">
         <RouterLink to="/">发现内容</RouterLink>
         <RouterLink to="/contents">内容库</RouterLink>
         <RouterLink to="/plans">订阅方案</RouterLink>
         <RouterLink v-if="canCreate" to="/creator">创作者工作台</RouterLink>
-        <RouterLink v-if="isAdmin" to="/admin/contents">内容审核</RouterLink>
-        <RouterLink v-if="isAdmin" to="/admin/categories">分类管理</RouterLink>
+
+        <el-dropdown v-if="isAdmin" trigger="hover" @command="go">
+          <span class="nav-dropdown">管理后台 <i>⌄</i></span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="/admin/contents">内容审核</el-dropdown-item>
+              <el-dropdown-item command="/admin/comments">评论管理</el-dropdown-item>
+              <el-dropdown-item command="/admin/users">用户管理</el-dropdown-item>
+              <el-dropdown-item command="/admin/categories">分类管理</el-dropdown-item>
+              <el-dropdown-item command="/admin/plans">套餐管理</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </nav>
 
       <div class="header-actions">
@@ -49,6 +61,10 @@ const roleLabel = computed(() => {
   return userStore.role ? map[userStore.role] ?? userStore.role : ''
 })
 
+function go(path: string) {
+  router.push(path)
+}
+
 async function handleLogout() {
   await userStore.logout()
   router.push('/')
@@ -75,8 +91,20 @@ onMounted(() => {
   cursor: pointer;
   font-family: inherit;
 }
-/* 顶栏导航项变多了，压缩间距避免换行 */
 .main-nav {
-  gap: 22px;
+  gap: 18px;
+}
+.nav-dropdown {
+  font: 500 12px 'DM Mono', monospace;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  cursor: pointer;
+  outline: none;
+}
+.nav-dropdown:hover {
+  color: var(--ink);
+}
+.nav-dropdown i {
+  font-style: normal;
 }
 </style>

@@ -37,6 +37,9 @@ public class UserDO {
     /** USER 普通用户 / CREATOR 创作者 / ADMIN 管理员 */
     private String role;
 
+    /** ENABLED 正常 / DISABLED 已禁用（禁用后无法登录） */
+    private String status;
+
     @TableLogic
     @TableField("is_deleted")
     private boolean isDeleted;

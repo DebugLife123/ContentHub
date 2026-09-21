@@ -15,9 +15,13 @@ import com.contenthub.web.model.req.ContentPageReqVO;
 import com.contenthub.web.model.req.ContentReqVO;
 import com.contenthub.web.model.vo.ContentDetailVO;
 import com.contenthub.web.model.vo.ContentListVO;
+import com.contenthub.web.service.CommentService;
 import com.contenthub.web.service.ContentAccessService;
+import com.contenthub.web.service.ContentCacheService;
 import com.contenthub.web.service.ContentService;
+import com.contenthub.web.service.ContentStatService;
 import com.contenthub.web.service.FavoriteService;
+import com.contenthub.web.service.ReadingHistoryService;
 import com.contenthub.web.util.CurrentUserUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -48,15 +52,27 @@ public class ContentServiceImpl implements ContentService {
     private final ContentCategoryMapper categoryMapper;
     private final ContentAccessService accessService;
     private final FavoriteService favoriteService;
+    private final CommentService commentService;
+    private final ContentCacheService cacheService;
+    private final ContentStatService statService;
+    private final ReadingHistoryService readingHistoryService;
 
     public ContentServiceImpl(ContentMapper contentMapper,
                               ContentCategoryMapper categoryMapper,
                               ContentAccessService accessService,
-                              FavoriteService favoriteService) {
+                              FavoriteService favoriteService,
+                              CommentService commentService,
+                              ContentCacheService cacheService,
+                              ContentStatService statService,
+                              ReadingHistoryService readingHistoryService) {
         this.contentMapper = contentMapper;
         this.categoryMapper = categoryMapper;
         this.accessService = accessService;
         this.favoriteService = favoriteService;
+        this.commentService = commentService;
+        this.cacheService = cacheService;
+        this.statService = statService;
+        this.readingHistoryService = readingHistoryService;
     }
 
     // ------------------------------------------------------------------ 查询
@@ -67,6 +83,31 @@ public class ContentServiceImpl implements ContentService {
     }
 
     @Override
+    public Response<List<ContentListVO>> hotContents(int limit) {
+        List<Long> ids = statService.hotContentIds(limit);
+        if (ids.isEmpty()) {
+            return Response.success(List.of());
+        }
+
+        // 只展示仍然已发布的内容：热门 ZSet 里可能残留已下架/已删除的 id
+        Map<Long, ContentDO> contents = contentMapper.selectBatchIds(ids).stream()
+                .filter(c -> "PUBLISHED".equals(c.getStatus()))
+                .collect(Collectors.toMap(ContentDO::getId, c -> c, (a, b) -> a));
+
+        Map<Long, String> categoryNames = categoryNames(
+                contents.values().stream().map(ContentDO::getCategoryId).collect(Collectors.toSet()));
+
+        // 按 ZSet 的顺序输出，而不是按 selectBatchIds 返回的顺序
+        List<ContentListVO> list = ids.stream()
+                .map(contents::get)
+                .filter(Objects::nonNull)
+                .map(c -> toListVO(c, categoryNames.get(c.getCategoryId())))
+                .toList();
+
+        return Response.success(list);
+    }
+
+    @Override
     public Response<PageResponse<ContentListVO>> pageMine(ContentPageReqVO req) {
         LoginUser loginUser = CurrentUserUtil.requireLoginUser();
         return Response.success(doPage(req, loginUser.getUserId(), null));
@@ -74,28 +115,52 @@ public class ContentServiceImpl implements ContentService {
 
     @Override
     public Response<PageResponse<ContentListVO>> pageForReview(ContentPageReqVO req) {
-        // 管理端看全部内容；不传 status 时默认聚焦待审核，方便审核页打开即用
         String status = StringUtils.isNotBlank(req.getStatus()) ? req.getStatus() : "PENDING";
         return Response.success(doPage(req, null, status, true));
     }
 
     @Override
     public Response<ContentDetailVO> findPublishedById(Long id) {
-        ContentDO content = contentMapper.selectById(id);
+        // 阶段 5 Day 39：先查 Redis 缓存，未命中再打库并回填
+        ContentDO content = cacheService.get(id);
+        if (content == null) {
+            content = contentMapper.selectById(id);
+            if (content != null) {
+                cacheService.put(content);
+            }
+        }
+
         if (Objects.isNull(content) || !"PUBLISHED".equals(content.getStatus())) {
             throw new BizException(ResponseCodeEnum.CONTENT_NOT_FOUND);
         }
 
+        // Day 42：浏览量 INCR（写 Redis，定时任务再落库）
+        statService.recordView(id);
+        // Day 46：记录阅读历史（未登录时静默跳过）
+        readingHistoryService.record(id, null);
+
         LoginUser loginUser = CurrentUserUtil.getLoginUser();
-        // 计划 Day 25-27：免费内容直接给全文，订阅内容按权限决定是否只给试读
         ContentAccessService.AccessDecision decision = accessService.decide(content, loginUser);
 
-        return Response.success(toDetailVO(content, categoryName(content.getCategoryId()), loginUser, decision));
+        // 库里的 viewCount 是「上次同步时的值」，把 Redis 里待同步的增量加上，
+        // 否则刚访问完刷新页面看不到浏览量变化
+        int effectiveViews = (content.getViewCount() == null ? 0 : content.getViewCount())
+                + (int) Math.min(Integer.MAX_VALUE, statService.pendingViews(id));
+
+        ContentDetailVO vo = toDetailVO(content, categoryName(content.getCategoryId()), loginUser, decision);
+        vo.setViewCount(effectiveViews);
+        return Response.success(vo);
     }
 
     @Override
     public Response<ContentDetailVO> findMineById(Long id) {
-        ContentDO content = requireExisting(id);
+        ContentDO content = cacheService.get(id);
+        if (content == null) {
+            content = contentMapper.selectById(id);
+        }
+        if (Objects.isNull(content)) {
+            throw new BizException(ResponseCodeEnum.CONTENT_NOT_FOUND);
+        }
         requireOwnership(content);
 
         LoginUser loginUser = CurrentUserUtil.getLoginUser();
@@ -142,20 +207,9 @@ public class ContentServiceImpl implements ContentService {
         requireOwnership(existing);
         validateCategory(req.getCategoryId());
 
-        String status = existing.getStatus();
-        if (StringUtils.isNotBlank(req.getStatus())) {
-            String requested = req.getStatus().trim().toUpperCase();
-            if ("PUBLISHED".equals(requested)) {
-                throw new BizException(ResponseCodeEnum.CONTENT_STATUS_ILLEGAL.getErrorCode(),
-                        "内容需经管理员审核才能发布，请先提交审核");
-            }
-            if (!Set.of("DRAFT", "OFFLINE").contains(requested)) {
-                throw new BizException(ResponseCodeEnum.CONTENT_STATUS_ILLEGAL.getErrorCode(),
-                        "编辑时只能选择 DRAFT 或 OFFLINE，其余状态由审核流程控制");
-            }
-            status = requested;
-        }
-
+        // 编辑接口刻意「不碰状态」：状态只能通过 submit / offline / approve / reject 流转。
+        // 早期版本允许在这里传 DRAFT/OFFLINE，结果是「编辑一篇已发布文章时，
+        // 前端把 PUBLISHED 回显成 DRAFT 再提交」会把它悄悄降级成草稿。
         ContentDO update = ContentDO.builder()
                 .id(id)
                 .categoryId(req.getCategoryId())
@@ -166,10 +220,11 @@ public class ContentServiceImpl implements ContentService {
                 .body(req.getBody())
                 .fileUrl(req.getFileUrl())
                 .accessType(StringUtils.defaultIfBlank(req.getAccessType(), existing.getAccessType()).toUpperCase())
-                .status(status)
                 .build();
 
         contentMapper.updateById(update);
+        // Day 40：改完数据库必须清缓存，否则读到的还是旧内容
+        cacheService.evict(id);
         return Response.success();
     }
 
@@ -179,6 +234,7 @@ public class ContentServiceImpl implements ContentService {
         ContentDO existing = requireExisting(id);
         requireOwnership(existing);
         contentMapper.deleteById(id);
+        cacheService.evict(id);
         return Response.success();
     }
 
@@ -204,7 +260,6 @@ public class ContentServiceImpl implements ContentService {
     @Transactional
     public Response<Void> approve(Long id) {
         ContentDO content = requireExisting(id);
-        // 审核通过后清掉上一次的驳回原因
         return transition(content, "PUBLISHED", null);
     }
 
@@ -218,7 +273,7 @@ public class ContentServiceImpl implements ContentService {
     /**
      * 统一的状态流转入口：先查状态机是否允许，再更新。
      *
-     * <p>把允许的流转写成表，避免各个接口各自 if 判断导致状态能被随意改。</p>
+     * <p>状态一变，内容就有资格/失去出现在公开页，缓存必须同步失效。</p>
      */
     private Response<Void> transition(ContentDO content, String target, String rejectReason) {
         String current = content.getStatus();
@@ -232,18 +287,17 @@ public class ContentServiceImpl implements ContentService {
         ContentDO update = ContentDO.builder()
                 .id(content.getId())
                 .status(target)
-                // REJECTED 时写入驳回原因；其余状态传 null
                 .rejectReason("REJECTED".equals(target) ? rejectReason : null)
                 .build();
 
         contentMapper.updateById(update);
 
         if (!"REJECTED".equals(target)) {
-            // updateById 会忽略 null 字段，所以「清空驳回原因」必须走显式 UPDATE，
-            // 否则重新提交审核后还会残留上一次的驳回理由
+            // updateById 会忽略 null 字段，所以「清空驳回原因」必须走显式 UPDATE
             contentMapper.clearRejectReason(content.getId());
         }
 
+        cacheService.evict(content.getId());
         log.info("内容 {} 状态 {} -> {}", content.getId(), current, target);
         return Response.success();
     }
@@ -254,11 +308,6 @@ public class ContentServiceImpl implements ContentService {
         return doPage(req, creatorId, forcedStatus, false);
     }
 
-    /**
-     * @param creatorId     不为空时只看该创作者的内容
-     * @param forcedStatus  不为空时强制只看该状态
-     * @param statusOptional forcedStatus 为空时是否仍允许按 req.status 过滤
-     */
     private PageResponse<ContentListVO> doPage(ContentPageReqVO req, Long creatorId,
                                                String forcedStatus, boolean statusOptional) {
         LambdaQueryWrapper<ContentDO> query = new LambdaQueryWrapper<>();
@@ -301,7 +350,6 @@ public class ContentServiceImpl implements ContentService {
         return content;
     }
 
-    /** 归属校验：创作者只能改自己的内容，管理员不受限 */
     private void requireOwnership(ContentDO content) {
         LoginUser loginUser = CurrentUserUtil.requireLoginUser();
         if ("ADMIN".equals(loginUser.getRole())) {
@@ -401,6 +449,8 @@ public class ContentServiceImpl implements ContentService {
                 .updateTime(c.getUpdateTime())
                 .favorited(favorited)
                 .favoriteCount(favoriteCount)
+                .commentCount(commentService.countByContent(c.getId()))
+                .hotScore(statService.hotScore(c.getId()))
                 .build();
     }
 }

@@ -26,12 +26,19 @@ public class LoginUser implements UserDetails {
     private final String password;
     /** 原始角色名：USER / CREATOR / ADMIN */
     private final String role;
+    /** 账号是否可用；管理员禁用后为 false，DaoAuthenticationProvider 会抛出 DisabledException */
+    private final boolean enabled;
 
     public LoginUser(Long userId, String username, String password, String role) {
+        this(userId, username, password, role, true);
+    }
+
+    public LoginUser(Long userId, String username, String password, String role, boolean enabled) {
         this.userId = userId;
         this.username = username;
         this.password = password;
         this.role = role;
+        this.enabled = enabled;
     }
 
     @Override
@@ -69,6 +76,6 @@ public class LoginUser implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return enabled;
     }
 }

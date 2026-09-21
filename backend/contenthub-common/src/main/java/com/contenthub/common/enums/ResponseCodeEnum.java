@@ -35,6 +35,9 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     PLAN_IN_USE("20015", "该套餐已有订阅记录，无法删除"),
     NOT_CREATOR("20017", "还不是创作者，请先申请创作者身份"),
     SUBSCRIPTION_NOT_FOUND("20018", "订阅记录不存在"),
+    ACCOUNT_DISABLED("20019", "账号已被禁用，请联系管理员"),
+    COMMENT_NOT_FOUND("20020", "评论不存在"),
+    NOT_COMMENT_OWNER("20021", "只能删除自己的评论"),
     SELECT_FAIL("20003","查询数据库时出错");
     // 异常码
     private String errorCode;

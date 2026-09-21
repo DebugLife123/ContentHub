@@ -72,6 +72,24 @@
       </div>
     </section>
 
+    <!-- 热门内容（阶段 5 Day 41：来自 Redis ZSet 排名） -->
+    <section v-if="hot.length" class="content-width hot-section">
+      <div class="section-heading">
+        <div><p class="eyebrow">TRENDING NOW</p><h2>热门内容<br><em>此刻正在被阅读</em></h2></div>
+        <p class="heading-aside">热度 = 浏览量 + 收藏加权，<br>由 Redis ZSet 实时排序。</p>
+      </div>
+      <ol class="hot-list">
+        <li v-for="(item, index) in hot" :key="item.id" @click="$router.push(`/content/${item.id}`)">
+          <span class="hot-rank">{{ String(index + 1).padStart(2, '0') }}</span>
+          <div class="hot-main">
+            <strong>{{ item.title }}</strong>
+            <small>{{ item.categoryName || '未分类' }} · {{ item.contentType }}</small>
+          </div>
+          <span class="hot-views">{{ item.viewCount || 0 }} 次阅读</span>
+        </li>
+      </ol>
+    </section>
+
     <section id="creators" class="creator-banner content-width">
       <div><p class="eyebrow">FOR CREATORS</p><h2>你的经验，<br><em>值得被订阅。</em></h2></div>
       <p>不只是发布内容，而是建立一个属于你的、可持续成长的知识空间。用订阅连接真正认可你的人。</p>
@@ -82,7 +100,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { pageContents } from '../api/content'
+import { hotContents, pageContents } from '../api/content'
 import { listCategories } from '../api/category'
 import { useUserStore } from '@/stores/user'
 import type { Category, ContentItem } from '../api/types'
@@ -108,6 +126,7 @@ const error = ref('')
 const cards = ref<ContentCard[]>([])
 const categories = ref<Category[]>([])
 const activeCategoryId = ref<number | null>(null)
+const hot = ref<ContentItem[]>([])
 
 const themes = ['theme-orange', 'theme-lilac', 'theme-ink', 'theme-yellow']
 const typeLabels: Record<string, string> = {
@@ -160,6 +179,12 @@ onMounted(async () => {
     categories.value = []
   }
   await loadContents()
+  try {
+    const res = await hotContents(5)
+    if (res.data.success) hot.value = res.data.data
+  } catch {
+    hot.value = []
+  }
 })
 </script>
 
@@ -170,5 +195,42 @@ onMounted(async () => {
 }
 .category-row span {
   user-select: none;
+}
+.hot-section {
+  padding: 40px 0 0;
+}
+.hot-list {
+  list-style: none;
+  margin: 30px 0 0;
+  padding: 0;
+  counter-reset: hot;
+}
+.hot-list li {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.hot-rank {
+  font: 13px 'DM Mono', monospace;
+  color: var(--orange);
+}
+.hot-main strong {
+  display: block;
+  font-size: 15px;
+  letter-spacing: -0.02em;
+}
+.hot-main small {
+  display: block;
+  margin-top: 5px;
+  font: 10px 'DM Mono', monospace;
+  color: var(--muted);
+}
+.hot-views {
+  font: 10px 'DM Mono', monospace;
+  color: var(--muted);
 }
 </style>

@@ -97,8 +97,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   deleteContent, offlineContent, pageMyContents, submitContent,
 } from '@/api/content'
+import { getCreatorDashboard } from '@/api/creator'
 import { useUserStore } from '@/stores/user'
-import type { ContentItem, ContentStatus } from '@/api/types'
+import type { ContentItem, ContentStatus, CreatorDashboard } from '@/api/types'
 
 const userStore = useUserStore()
 
@@ -108,6 +109,8 @@ const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(10)
 const statusFilter = ref<ContentStatus | ''>('')
+/** 阶段 6 Day 48：统计来自 /creator/dashboard，而不是只统计当前页 */
+const dashboard = ref<CreatorDashboard | null>(null)
 
 const statusOptions = [
   { label: '草稿', value: 'DRAFT' },
@@ -122,13 +125,22 @@ const displayName = computed(
 )
 
 const metrics = computed(() => {
-  const count = (s: string) => items.value.filter((i) => i.status === s).length
-  const views = items.value.reduce((sum, i) => sum + (i.viewCount || 0), 0)
+  const d = dashboard.value
+  if (!d) {
+    // 仪表盘接口还没回来时先用本页数据兜底，避免卡片闪空
+    const count = (s: string) => items.value.filter((i) => i.status === s).length
+    return [
+      { label: '内容总数', value: String(total.value), change: `本页已发布 ${count('PUBLISHED')} 篇` },
+      { label: '待审核', value: String(count('PENDING')), change: '等待管理员处理' },
+      { label: '草稿 / 已驳回', value: `${count('DRAFT')} / ${count('REJECTED')}`, change: '需要继续完善' },
+      { label: '阅读量', value: String(items.value.reduce((s, i) => s + (i.viewCount || 0), 0)), change: '本页内容合计' },
+    ]
+  }
   return [
-    { label: '内容总数', value: String(total.value), change: `本页已发布 ${count('PUBLISHED')} 篇` },
-    { label: '待审核', value: String(count('PENDING')), change: '等待管理员处理' },
-    { label: '草稿 / 已驳回', value: `${count('DRAFT')} / ${count('REJECTED')}`, change: '需要继续完善' },
-    { label: '阅读量', value: String(views), change: '本页内容合计' },
+    { label: '内容总数', value: String(d.contentCount), change: `已发布 ${d.publishedCount} / 待审核 ${d.pendingCount}` },
+    { label: '总阅读量', value: String(d.totalViews), change: `收藏 ${d.totalFavorites} · 评论 ${d.totalComments}` },
+    { label: '有效订阅者', value: String(d.subscriberCount), change: `套餐 ${d.planCount} 个` },
+    { label: '草稿 / 已驳回', value: `${d.draftCount} / ${d.rejectedCount}`, change: `已下架 ${d.offlineCount}` },
   ]
 })
 
@@ -209,7 +221,18 @@ async function handleDelete(item: ContentItem) {
   }
 }
 
-onMounted(load)
+async function loadDashboard() {
+  try {
+    const res = await getCreatorDashboard()
+    if (res.data.success) dashboard.value = res.data.data
+  } catch {
+    dashboard.value = null
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([load(), loadDashboard()])
+})
 </script>
 
 <style scoped>

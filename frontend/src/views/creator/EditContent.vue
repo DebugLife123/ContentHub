@@ -34,12 +34,10 @@
             <el-option label="订阅后阅读" value="SUBSCRIBED" />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态">
-          <!-- 阶段 3 起引入审核：这里只能存草稿或下架，发布必须由管理员审核通过 -->
-          <el-select v-model="form.status">
-            <el-option label="草稿" value="DRAFT" />
-            <el-option label="已下架" value="OFFLINE" />
-          </el-select>
+        <el-form-item label="当前状态">
+          <!-- 编辑不改状态：状态只能通过「提交审核 / 下架 / 管理员审核」流转，
+               否则编辑一篇已发布文章会把它悄悄降级成草稿 -->
+          <span class="status-readonly">{{ statusLabel(currentStatus) }}</span>
         </el-form-item>
       </div>
 
@@ -74,7 +72,7 @@ import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createContent, getMyContent, updateContent } from '@/api/content'
 import { listCategories } from '@/api/category'
-import type { Category, ContentPayload } from '@/api/types'
+import type { Category, ContentPayload, ContentStatus } from '@/api/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -113,8 +111,15 @@ const form = reactive<ContentPayload>({
   body: '',
   fileUrl: '',
   accessType: 'FREE',
-  status: 'DRAFT',
 })
+
+const currentStatus = ref<ContentStatus>('DRAFT')
+const STATUS_LABELS: Record<string, string> = {
+  DRAFT: '草稿', PENDING: '待审核', PUBLISHED: '已发布', REJECTED: '已驳回', OFFLINE: '已下架',
+}
+function statusLabel(s: string) {
+  return STATUS_LABELS[s] ?? s
+}
 
 const rules: FormRules = {
   title: [{ required: true, message: '请输入标题', trigger: 'blur' }],
@@ -171,10 +176,8 @@ onMounted(async () => {
           body: data.body ?? '',
           fileUrl: data.fileUrl ?? '',
           accessType: data.accessType,
-          // 编辑态只允许 DRAFT / OFFLINE；若当前是 PENDING/PUBLISHED/REJECTED，
-          // 回显为 DRAFT 以免把非法状态提交回后端（状态流转由专门接口控制）
-          status: data.status === 'OFFLINE' ? 'OFFLINE' : 'DRAFT',
         })
+        currentStatus.value = data.status
       } else {
         error.value = res.data.message || '内容不存在'
       }
@@ -208,6 +211,12 @@ onMounted(async () => {
 .success-text {
   color: #68863d;
   font-size: 12px;
+}
+.status-readonly {
+  font: 11px 'DM Mono', monospace;
+  padding: 3px 9px;
+  border: 1px solid var(--line);
+  color: var(--muted);
 }
 @media (max-width: 800px) {
   .form-row {

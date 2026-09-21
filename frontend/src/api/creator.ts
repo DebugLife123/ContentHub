@@ -1,5 +1,5 @@
 import api from '../axios'
-import type { ApiResponse, CreatorProfile } from './types'
+import type { ApiResponse, CreatorDashboard, CreatorProfile } from './types'
 
 /** 申请成为创作者（普通用户 -> 创作者） */
 export function applyCreator() {
@@ -19,4 +19,9 @@ export function updateCreatorProfile(payload: { displayName: string; intro?: str
 /** 创作者公开资料 */
 export function getCreatorProfile(userId: number) {
   return api.get<ApiResponse<CreatorProfile>>(`/creators/${userId}`)
+}
+
+/** 创作者仪表盘统计（阶段 6 Day 48） */
+export function getCreatorDashboard() {
+  return api.get<ApiResponse<CreatorDashboard>>('/creator/dashboard')
 }

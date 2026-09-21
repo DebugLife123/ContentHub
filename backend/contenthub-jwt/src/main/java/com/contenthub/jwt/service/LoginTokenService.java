@@ -22,7 +22,7 @@ import java.time.Duration;
 public class LoginTokenService {
 
     /** 计划表 8 约定的 Key 前缀 */
-    private static final String KEY_PREFIX = "login:token:";
+    private static final String KEY_PREFIX = com.contenthub.common.constants.RedisKeys.LOGIN_TOKEN_PREFIX;
 
     private final StringRedisTemplate redisTemplate;
 

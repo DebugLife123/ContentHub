@@ -48,10 +48,10 @@ ContentHub/
 │       ├── stores/user.ts       # Pinia 登录态
 │       ├── router/index.ts      # 路由与守卫（requiresAuth / roles）
 │       └── views/
-│           ├── Home.vue / ContentList.vue / ContentDetail.vue   # 首页 / 内容库 / 详情（试读与收藏）
-│           ├── Login.vue / Register.vue / Profile.vue           # 认证与个人中心（含我的收藏）
-│           ├── creator/         # 工作台（状态流转）、创作者资料、套餐管理、发布与编辑
-│           ├── admin/           # 内容审核、分类管理
+│           ├── Home.vue / ContentList.vue / ContentDetail.vue   # 首页（含热门榜）/ 内容库 / 详情（试读 + 评论 + 收藏）
+│           ├── Login.vue / Register.vue / Profile.vue           # 认证与个人中心（收藏 / 阅读历史 / 我的评论）
+│           ├── creator/         # 工作台（统计 + 状态流转）、创作者资料、套餐管理、发布与编辑
+│           ├── admin/           # 内容审核、评论管理、用户管理、分类管理、套餐管理
 │           └── subscription/    # 订阅方案、我的订阅
 ├── docs/
 │   └── database.sql             # 数据库建表脚本 + 演示数据（同时作为 MySQL 容器初始化脚本）
@@ -75,12 +75,53 @@ ContentHub/
 | 阶段 2 | Day 13-19 | Spring Security + JWT + Redis 登录权限 | ✅ 已完成 |
 | 阶段 3 | Day 20-29 | 内容中心：发布、详情、审核、权限访问 | ✅ 已完成（tag `v0.2`） |
 | 阶段 4 | Day 30-38 | 套餐、订阅、模拟支付、订阅到期 | ✅ 已完成（tag `v0.2`） |
-| 阶段 5 | Day 39-47 | Redis 缓存、热门、搜索、收藏、评论、历史 | ⬜ 未开始 |
-| 阶段 6 | Day 48-55 | 创作者中心 + 管理后台 | ⬜ 未开始 |
+| 阶段 5 | Day 39-47 | Redis 缓存、热门、搜索、收藏、评论、历史 | ✅ 已完成 |
+| 阶段 6 | Day 48-55 | 创作者中心 + 管理后台 | ✅ 已完成 |
 | 阶段 7 | Day 56-60 | 联调、异常处理、Docker、Nginx、部署 | ⬜ 未开始 |
 | 可选升级 | Day 61-70 | Spring AI / RAG / AI 内容助手 | ⬜ 未开始 |
 
-**结论：阶段 0-4 均已完成；下一步进入阶段 5（Redis 缓存、热门内容、浏览量 INCR、评论、阅读历史）。**
+**结论：阶段 0-6 均已完成；只剩阶段 7（Docker 化部署 + Nginx + README 截图）与可选的 AI 升级。**
+
+### 阶段 5 与阶段 6 已完成
+
+| 阶段 | 计划验收标准 | 落实 |
+|---|---|---|
+| 5 | 热门内容排序明显可见 | `GET /api/contents/hot` 读 Redis ZSet 排名，按热度分倒序 |
+| 5 | 重复访问热点详情能命中缓存 | 详情先查 `content:{id}`，命中则不打库；TTL 30 分钟 |
+| 5 | 浏览量会增长 | 访问即 `INCR content:view:{id}`，接口返回值已叠加待同步增量 |
+| 5 | 个人中心能看到收藏、评论、历史 | 个人中心含收藏、阅读历史（带进度条）、我的评论三块 |
+| 6 | 不同角色看到不同菜单 | 顶栏按角色渲染：创作者见工作台，管理员另见「管理后台」下拉 |
+| 6 | 创作者可以独立运营自己的内容 | 工作台统计 + 状态流转 + 资料 + 套餐管理 |
+| 6 | 管理员可以处理平台日常事务 | 内容审核、评论管理、用户管理、分类管理、套餐管理 |
+| 6 | 能讲清楚 RBAC 的基本实现 | 见下方「权限模型」 |
+
+主要实现要点：
+
+**Redis 的四处用法（对应计划表 8）**
+
+| 场景 | Key | 用法 |
+|---|---|---|
+| 登录 token | `login:token:{token}` | 阶段 2 已实现 |
+| 内容缓存 | `content:{id}` | 缓存 `ContentDO` 的 JSON，TTL 30 分钟 |
+| 浏览量 | `content:view:{id}` | `INCR` 累计，定时任务 `getAndDelete` 后累加进 MySQL |
+| 热门内容 | `hot:content` | ZSet，浏览 +1、收藏 +3、取消收藏 -3（下限 0） |
+
+- **缓存的是 DO 而不是组装好的 VO**：详情 VO 里带 `locked` 与 `favorited`，是随访问者变化的；缓存它会把 A 用户的解锁状态泄漏给 B 用户。缓存「与访问者无关」的那一层才是安全的。
+- **缓存失效覆盖所有写路径**：编辑、删除、状态流转、浏览量落库都会 `evict`，这正是计划 Day 40 要解决的「改了数据库但缓存还是旧数据」。
+- **浏览量先写 Redis 再定时落库**：浏览量是高频写、允许最终一致的数据，每次打库会造成热点行写竞争。定时任务用 `getAndDelete` 取值，避免「取完没落库就崩溃」导致重复累加。
+- **热门榜冷启动用库里的历史 `view_count` 打底**：否则服务刚启动时热门榜是空的，看起来像功能坏了。
+- **接口返回的浏览量 = 库里的值 + Redis 待同步增量**，所以刚访问完刷新就能看到增长，而不是等 30 秒。
+
+**权限模型（RBAC）**
+
+- 角色来自 `users.role`，在 `UserDetailServiceImpl` 里映射为 `ROLE_USER` / `ROLE_CREATOR` / `ROLE_ADMIN` 放进 `LoginUser`。
+- `WebSecurityConfig` 按「读公开、写按角色」编排，**规则自上而下先匹配先生效**：`/contents/mine` 与 `/contents/*/favorite` 这类规则必须写在 `GET /contents/**` 与 `DELETE /contents/**` 之前，否则会被后者放行或拦掉。
+- 角色只回答「这类操作能不能做」，「这条数据是不是你的」由 Service 层的归属校验回答（`NOT_CONTENT_OWNER` / `NOT_COMMENT_OWNER`）。两者缺一不可：只做角色校验，任何创作者都能改别人的内容。
+- 前端路由守卫只是体验层，改 localStorage 就能绕过，真正的权限始终在后端。
+
+**账号禁用（阶段 6 Day 51）**
+
+`users` 增加 `status` 字段。禁用不是直接抛异常，而是让 `LoginUser.isEnabled()` 返回 false，由 `DaoAuthenticationProvider` 抛出 `DisabledException`——这样「用户名不存在」与「账号被禁用」在响应上仍然可区分（错误码 `20019`）。另外禁止管理员禁用自己，避免把自己锁在门外。
 
 ### 阶段 3 与阶段 4 已完成
 
@@ -160,12 +201,9 @@ ContentHub/
 - **Redis 接入**：`spring.data.redis` 配置（Boot 3 前缀）、`RedisConfig`（key 用 String、value 用 JSON，便于 `redis-cli` 观察）、补充 `StringRedisTemplate`；
 - **前端 TypeScript**：`typescript` 5.9 + `vue-tsc`，`tsconfig.json`（`strict`，`allowJs` 渐进迁移），`vite.config.ts`，`npm run build` 已串入类型检查。
 
-### 阶段 5 及以后
+### 阶段 7 及以后
 
-阶段 5-7 与可选 AI 阶段均未开始。
-
-已建表但**尚无对应代码**的有：`comments`；计划表 6 中标记为「建议」的 `reading_history` 尚未创建。
-Redis 目前只用于登录 token（阶段 2），计划阶段 5 的缓存、热门 ZSet、浏览量 INCR 尚未落地。
+阶段 7 与可选 AI 阶段未开始。当前还没有 `Dockerfile`，`docker-compose.yml` 只包含 MySQL 与 Redis（阶段 7 会扩展加入 backend + nginx）。
 
 ## 已实现接口
 
@@ -180,6 +218,8 @@ Redis 目前只用于登录 token（阶段 2），计划阶段 5 的缓存、热
 | POST | `/api/auth/logout` | 登录 | 退出登录，从 Redis 删除 token 使其立即失效 |
 | GET | `/api/users/me` | 登录 | 当前登录用户信息 |
 | GET | `/api/users/me/favorites` | 登录 | 我的收藏 |
+| GET | `/api/users/me/comments` | 登录 | 我的评论 |
+| GET | `/api/users/me/history` | 登录 | 我的阅读历史（含进度） |
 
 ### 分类
 
@@ -206,6 +246,11 @@ Redis 目前只用于登录 token（阶段 2），计划阶段 5 的缓存、热
 | POST | `/api/contents/{id}/offline` | 作者本人 / CREATOR | 下架：`PUBLISHED` → `OFFLINE` |
 | POST | `/api/contents/{id}/favorite` | 登录 | 收藏（重复收藏返回业务错误） |
 | DELETE | `/api/contents/{id}/favorite` | 登录 | 取消收藏（物理删除） |
+| GET | `/api/contents/hot` | 公开 | 热门内容（Redis ZSet 排名，`?limit=6`） |
+| GET | `/api/contents/{id}/comments` | 公开 | 评论列表（只返回 NORMAL） |
+| POST | `/api/contents/{id}/comments` | 登录 | 发表评论 |
+| DELETE | `/api/comments/{id}` | 本人 / ADMIN | 删除评论 |
+| PUT | `/api/contents/{id}/progress` | 登录 | 回传阅读进度（0-100） |
 
 ### 创作者
 
@@ -214,6 +259,7 @@ Redis 目前只用于登录 token（阶段 2），计划阶段 5 的缓存、热
 | POST | `/api/creator/apply` | 登录 | 申请成为创作者（USER → CREATOR，并建立资料） |
 | GET | `/api/creator/profile` | CREATOR / ADMIN | 我的创作者资料 |
 | PUT | `/api/creator/profile` | CREATOR / ADMIN | 修改创作者资料 |
+| GET | `/api/creator/dashboard` | CREATOR / ADMIN | 仪表盘统计（内容数/阅读量/收藏量/订阅人数） |
 | GET | `/api/creators/{userId}` | 公开 | 创作者公开资料 |
 
 ### 管理端
@@ -223,6 +269,12 @@ Redis 目前只用于登录 token（阶段 2），计划阶段 5 的缓存、热
 | GET | `/api/admin/contents` | ADMIN | 内容列表（默认 `PENDING`，可按状态筛选） |
 | POST | `/api/admin/contents/{id}/approve` | ADMIN | 审核通过：`PENDING` → `PUBLISHED` |
 | POST | `/api/admin/contents/{id}/reject` | ADMIN | 审核驳回：`PENDING` → `REJECTED`，需填原因 |
+| GET | `/api/admin/comments` | ADMIN | 评论列表（可按状态筛选，含已隐藏） |
+| PUT | `/api/admin/comments/{id}/status` | ADMIN | 隐藏 / 恢复评论 |
+| DELETE | `/api/admin/comments/{id}` | ADMIN | 删除评论 |
+| GET | `/api/admin/users` | ADMIN | 用户列表（可按关键词与角色筛选） |
+| PUT | `/api/admin/users/{id}/status` | ADMIN | 启用 / 禁用账号（禁用后无法登录） |
+| GET | `/api/admin/plans` | ADMIN | 全平台套餐 |
 | POST | `/api/admin/test` | ADMIN | 脚手架自带的 hello 接口 |
 | GET | `/api/admin/redis/verify` | ADMIN | 阶段 0 验收用：写一个带 TTL 的 key 再读回 |
 
@@ -400,6 +452,29 @@ Invoke-RestMethod http://127.0.0.1:8084/api/contents/1 | Select-Object -ExpandPr
   Format-List locked
 ```
 
+### 阶段 5 验收：缓存、热门、浏览量
+
+```powershell
+$redis = 'docker exec contenthub-redis redis-cli'
+
+# 1) 详情缓存：清掉再访问一次，key 应重新出现且有 TTL
+& cmd /c "$redis del content:1"
+Invoke-RestMethod http://127.0.0.1:8084/api/contents/1 | Out-Null
+& cmd /c "$redis exists content:1"      # 期望 1
+& cmd /c "$redis ttl content:1"         # 期望 0 < TTL <= 1800
+
+# 2) 浏览量：连续访问后 Redis 计数增长，接口返回的 viewCount 也增长
+& cmd /c "$redis get content:view:1"
+
+# 3) 热门榜：ZSet 按分数倒序
+& cmd /c "$redis zrevrange hot:content 0 4 withscores"
+Invoke-RestMethod 'http://127.0.0.1:8084/api/contents/hot?limit=5' | ConvertTo-Json -Depth 3
+
+# 4) 等 30 秒后定时任务会把浏览量落库，Redis 计数被清空
+Start-Sleep -Seconds 35
+& cmd /c "$redis exists content:view:1"   # 期望 0
+```
+
 ### 接口快速验证
 
 ```powershell
@@ -432,9 +507,8 @@ Invoke-RestMethod http://127.0.0.1:8084/api/plans | ConvertTo-Json -Depth 5
 
 ## 下一步（严格按计划的阶段顺序）
 
-1. **阶段 5（Day 39-47）**：内容详情 Redis 缓存与缓存失效、热门内容 ZSet、浏览量 INCR 与定时同步 MySQL、评论（`comments` 表已建待用）、阅读历史（`reading_history` 表待建）。
-2. **阶段 6（Day 48-55）**：创作者仪表盘增强（趋势图）、管理员用户管理、评论管理、套餐管理（分类管理与内容审核已完成）。
-3. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、Docker 构建前后端、扩展 `docker-compose.yml` 加入 backend + nginx、Nginx 反向代理、部署、整理截图，打 tag `v1.0`。
+1. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、为前后端编写 `Dockerfile`、扩展 `docker-compose.yml` 加入 backend + nginx（前端容器里跑 `npm run build` 产物 + Nginx）、Nginx 反向代理、部署到 Linux、整理项目截图，打 tag `v1.0`。
+2. **可选升级（Day 61-70）**：Spring AI / RAG / AI 内容助手。
 
 ## 文档
 

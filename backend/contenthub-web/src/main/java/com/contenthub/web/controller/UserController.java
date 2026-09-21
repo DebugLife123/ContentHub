@@ -2,9 +2,13 @@ package com.contenthub.web.controller;
 
 import com.contenthub.common.utils.PageResponse;
 import com.contenthub.common.utils.Response;
+import com.contenthub.web.model.vo.CommentVO;
 import com.contenthub.web.model.vo.ContentListVO;
+import com.contenthub.web.model.vo.ReadingHistoryVO;
 import com.contenthub.web.model.vo.UserInfoVO;
+import com.contenthub.web.service.CommentService;
 import com.contenthub.web.service.FavoriteService;
+import com.contenthub.web.service.ReadingHistoryService;
 import com.contenthub.web.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,10 +24,17 @@ public class UserController {
 
     private final UserService userService;
     private final FavoriteService favoriteService;
+    private final ReadingHistoryService readingHistoryService;
+    private final CommentService commentService;
 
-    public UserController(UserService userService, FavoriteService favoriteService) {
+    public UserController(UserService userService,
+                          FavoriteService favoriteService,
+                          ReadingHistoryService readingHistoryService,
+                          CommentService commentService) {
         this.userService = userService;
         this.favoriteService = favoriteService;
+        this.readingHistoryService = readingHistoryService;
+        this.commentService = commentService;
     }
 
     @GetMapping("/me")
@@ -38,5 +49,21 @@ public class UserController {
             @RequestParam(defaultValue = "1") long pageNum,
             @RequestParam(defaultValue = "9") long pageSize) {
         return favoriteService.myFavorites(pageNum, pageSize);
+    }
+
+    @GetMapping("/me/history")
+    @Operation(summary = "我的阅读历史（阶段 5 Day 46）")
+    public Response<PageResponse<ReadingHistoryVO>> myHistory(
+            @RequestParam(defaultValue = "1") long pageNum,
+            @RequestParam(defaultValue = "10") long pageSize) {
+        return readingHistoryService.myHistory(pageNum, pageSize);
+    }
+
+    @GetMapping("/me/comments")
+    @Operation(summary = "我的评论（阶段 5 Day 45）")
+    public Response<PageResponse<CommentVO>> myComments(
+            @RequestParam(defaultValue = "1") long pageNum,
+            @RequestParam(defaultValue = "10") long pageSize) {
+        return commentService.myComments(pageNum, pageSize);
     }
 }

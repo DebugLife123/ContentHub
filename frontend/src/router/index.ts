@@ -16,6 +16,9 @@ import CreatorPlans from '../views/creator/Plans.vue'
 import EditContent from '../views/creator/EditContent.vue'
 import CategoryManage from '../views/admin/CategoryManage.vue'
 import ContentReview from '../views/admin/ContentReview.vue'
+import AdminUsers from '../views/admin/Users.vue'
+import AdminComments from '../views/admin/Comments.vue'
+import AdminPlans from '../views/admin/Plans.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -72,16 +75,31 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑内容', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
 
-  // ---------- 管理员 ----------
+  // ---------- 管理员（阶段 6：三种角色看到不同后台功能） ----------
   {
     path: '/admin/contents',
     component: ContentReview,
     meta: { title: '内容审核', requiresAuth: true, roles: ['ADMIN'] },
   },
   {
+    path: '/admin/users',
+    component: AdminUsers,
+    meta: { title: '用户管理', requiresAuth: true, roles: ['ADMIN'] },
+  },
+  {
+    path: '/admin/comments',
+    component: AdminComments,
+    meta: { title: '评论管理', requiresAuth: true, roles: ['ADMIN'] },
+  },
+  {
     path: '/admin/categories',
     component: CategoryManage,
     meta: { title: '分类管理', requiresAuth: true, roles: ['ADMIN'] },
+  },
+  {
+    path: '/admin/plans',
+    component: AdminPlans,
+    meta: { title: '套餐管理', requiresAuth: true, roles: ['ADMIN'] },
   },
 
   { path: '/:pathMatch(.*)*', redirect: '/' },
