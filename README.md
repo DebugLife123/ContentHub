@@ -10,7 +10,7 @@ ContentHub 不是一个普通"卖电子书"的商城，而是一个"创作者发
 
 真正要练的不是 CRUD，而是完整业务链：用户是谁、内容是谁发布的、订阅了什么、订阅后能看什么、哪些内容免费、哪些内容需要权限、热门内容怎么统计，以及这些数据怎样落到 MySQL 和 Redis。
 
-支持内容形态：文章 / PDF / 视频链接 / 代码模板 / Prompt 等数字内容。
+支持内容形态：技术文章 / 系列教程 / 电子书 / 视频课程 / PDF / 数据集。
 
 ## 业务主线（计划 §6）
 
@@ -260,7 +260,7 @@ ContentHub/
 
 ### 分类（栏目）
 
-内容库的栏目按**内容形态**划分，共 7 项，由 `content_category` 表驱动，内容库顶部横排标签即这 7 项：
+内容库的栏目按**内容形态**划分，共 4 项，由 `content_category` 表驱动，内容库顶部横排标签即这 4 项：
 
 | id | 栏目 | 说明 |
 |---|---|---|
@@ -268,12 +268,13 @@ ContentHub/
 | 2 | 电子书 | `content_type = EBOOK`，配 `file_url` |
 | 3 | 视频课程 | `content_type = VIDEO`，配 `file_url` |
 | 4 | PDF | `content_type = PDF`，配 `file_url` |
-| 5 | 代码模板 | `content_type = CODE` |
-| 6 | Prompt | `content_type = PROMPT` |
-| 7 | 专栏 | `content_type = COLUMN` |
 
-栏目仍由管理员在「分类管理」里增删改，`content_type` 字段独立保留（创作者发布时选择），
-内容库不再单独暴露「类型」筛选，避免与栏目重复。
+栏目仍由管理员在「分类管理」里增删改，`content_type` 字段独立保留（创作者发布时选择
+`ARTICLE / TUTORIAL / EBOOK / VIDEO / PDF / DATASET`），内容库不再单独暴露「类型」筛选，
+避免与栏目重复。
+
+> 「代码模板 / Prompt / 专栏」三个栏目与其下的演示内容已按要求移除，发布页的
+> `CODE / PROMPT / COLUMN` 三个类型选项也一并去掉。
 
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|

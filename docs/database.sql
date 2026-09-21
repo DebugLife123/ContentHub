@@ -70,7 +70,7 @@ CREATE TABLE `content_category` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='内容分类表';
 
 -- ----------------------------
--- 4. 内容表（技术文章/教程/电子书/视频/PDF/代码模板/Prompt/数据集/专栏）
+-- 4. 内容表（技术文章/系列教程/电子书/视频课程/PDF/数据集）
 -- ----------------------------
 DROP TABLE IF EXISTS `contents`;
 CREATE TABLE `contents` (
@@ -80,7 +80,7 @@ CREATE TABLE `contents` (
   `title` VARCHAR(200) NOT NULL COMMENT '标题',
   `summary` VARCHAR(500) DEFAULT NULL COMMENT '摘要',
   `cover` VARCHAR(255) DEFAULT NULL COMMENT '封面图URL',
-  `content_type` VARCHAR(20) NOT NULL COMMENT '内容类型: ARTICLE/TUTORIAL/EBOOK/VIDEO/PDF/CODE/PROMPT/DATASET/COLUMN',
+  `content_type` VARCHAR(20) NOT NULL COMMENT '内容类型: ARTICLE/TUTORIAL/EBOOK/VIDEO/PDF/DATASET',
   `body` MEDIUMTEXT COMMENT '正文内容(富文本/Markdown)',
   `file_url` VARCHAR(500) DEFAULT NULL COMMENT '附件文件URL(电子书/PDF/视频/数据集等)',
   `access_type` VARCHAR(20) NOT NULL DEFAULT 'FREE' COMMENT '访问类型: FREE免费 / SUBSCRIBED订阅可见',
@@ -202,15 +202,12 @@ INSERT INTO `creator_profiles` (`user_id`,`display_name`,`intro`,`verified`) VAL
 -- ----------------------------
 -- 初始数据: 内容分类
 -- ----------------------------
--- 栏目按「内容形态」划分：内容库顶部横排标签即这 7 项
+-- 栏目按「内容形态」划分：内容库顶部横排标签即这 4 项
 INSERT INTO `content_category` (`id`,`name`,`sort`,`status`) VALUES
 (1, '技术文章', 10, 'ENABLED'),
 (2, '电子书',   20, 'ENABLED'),
 (3, '视频课程', 30, 'ENABLED'),
-(4, 'PDF',      40, 'ENABLED'),
-(5, '代码模板', 50, 'ENABLED'),
-(6, 'Prompt',   60, 'ENABLED'),
-(7, '专栏',     70, 'ENABLED');
+(4, 'PDF',      40, 'ENABLED');
 
 -- ----------------------------
 -- 初始数据: 内容（每个栏目至少一篇，便于演示栏目筛选）
@@ -223,13 +220,7 @@ INSERT INTO `contents` (`creator_id`,`category_id`,`title`,`summary`,`cover`,`co
 -- 视频课程
 (2, 3, 'Vue 3 组合式 API 实战课', '12 节视频，把 Composition API 用到真实项目里。', NULL, 'VIDEO', '# 实战课\n\n配套源码与每节课的讲义。', 'https://example.com/videos/vue3-course.mp4', 'SUBSCRIBED', 'PUBLISHED', 1520, 168),
 -- PDF
-(2, 4, '全栈项目架构手册（PDF）', '一册讲清前后端分层、鉴权与部署的工程决策。', NULL, 'PDF', '# 架构手册\n\n适合当作项目启动前的检查清单。', 'https://example.com/files/architecture.pdf', 'FREE', 'PUBLISHED', 1130, 120),
--- 代码模板
-(2, 5, '全栈项目启动模板 2.0', '开箱即用的工程底座，专为快速验证想法而生。', NULL, 'CODE', '# Ship Faster\n\nVue 3 + Spring Boot 全栈项目启动模板。', NULL, 'FREE', 'PUBLISHED', 2140, 214),
--- Prompt
-(2, 6, 'AI 工作流 Prompt 图鉴', '把重复工作交给 AI，把时间还给真正重要的事。', NULL, 'PROMPT', '# Prompt Atlas\n\n42 个可以直接复用的工作流模板。', NULL, 'SUBSCRIBED', 'PUBLISHED', 860, 86),
--- 专栏
-(2, 7, '一个独立开发者的产品实验室', '从想法到上线，记录每一次真实的产品决策。', NULL, 'COLUMN', '# 产品实验室\n\n从想法到上线，记录每一次真实的产品决策。', NULL, 'SUBSCRIBED', 'PUBLISHED', 1280, 128);
+(2, 4, '全栈项目架构手册（PDF）', '一册讲清前后端分层、鉴权与部署的工程决策。', NULL, 'PDF', '# 架构手册\n\n适合当作项目启动前的检查清单。', 'https://example.com/files/architecture.pdf', 'FREE', 'PUBLISHED', 1130, 120);
 
 -- ----------------------------
 -- 初始数据: 一条待审核内容（便于直接演示管理端审核流程）

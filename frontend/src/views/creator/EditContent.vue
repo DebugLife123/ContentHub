@@ -96,10 +96,7 @@ const contentTypes = [
   { label: '电子书', value: 'EBOOK' },
   { label: '视频课程', value: 'VIDEO' },
   { label: 'PDF', value: 'PDF' },
-  { label: '代码模板', value: 'CODE' },
-  { label: 'Prompt', value: 'PROMPT' },
   { label: '数据集', value: 'DATASET' },
-  { label: '专栏', value: 'COLUMN' },
 ]
 
 const form = reactive<ContentPayload>({
