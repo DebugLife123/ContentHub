@@ -18,10 +18,13 @@ import java.util.Objects;
 
 public class JwtAuthenticationFilter extends AbstractAuthenticationProcessingFilter {
     /**
-     * 指定用户登录的访问地址
+     * 指定用户登录的访问地址。
+     *
+     * <p>计划表 19 约定认证接口为 {@code POST /api/auth/login}，其中 {@code /api} 是
+     * server.servlet.context-path，因此这里匹配 context 内的 {@code /auth/login}。</p>
      */
     public JwtAuthenticationFilter() {
-        super(new AntPathRequestMatcher("/login","POST"));
+        super(new AntPathRequestMatcher("/auth/login","POST"));
     }
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response) throws AuthenticationException, IOException, ServletException {

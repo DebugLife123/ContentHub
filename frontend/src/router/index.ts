@@ -1,19 +1,98 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { useUserStore } from '@/stores/user'
+import type { Role } from '@/api/types'
+
 import Home from '../views/Home.vue'
-import Login from '../views/Login.vue'
-import CreatorDashboard from '../views/CreatorDashboard.vue'
+import ContentList from '../views/ContentList.vue'
 import ContentDetail from '../views/ContentDetail.vue'
+import Login from '../views/Login.vue'
+import Register from '../views/Register.vue'
+import Profile from '../views/Profile.vue'
+import CreatorDashboard from '../views/CreatorDashboard.vue'
+import EditContent from '../views/creator/EditContent.vue'
+import CategoryManage from '../views/admin/CategoryManage.vue'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    title?: string
+    /** 需要登录 */
+    requiresAuth?: boolean
+    /** 允许访问的角色，未设置表示登录即可 */
+    roles?: Role[]
+  }
+}
 
 const routes: RouteRecordRaw[] = [
   { path: '/', component: Home, meta: { title: '发现内容' } },
-  { path: '/login', component: Login, meta: { title: '登录' } },
-  { path: '/creator', component: CreatorDashboard, meta: { title: '创作者工作台' } },
+  { path: '/contents', component: ContentList, meta: { title: '内容库' } },
   { path: '/content/:id', component: ContentDetail, meta: { title: '内容详情' } },
+  { path: '/login', component: Login, meta: { title: '登录' } },
+  { path: '/register', component: Register, meta: { title: '注册' } },
+
+  // ---------- 需要登录 ----------
+  { path: '/profile', component: Profile, meta: { title: '个人中心', requiresAuth: true } },
+
+  // ---------- 创作者 ----------
+  {
+    path: '/creator',
+    component: CreatorDashboard,
+    meta: { title: '创作者工作台', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
+  },
+  {
+    path: '/creator/contents/new',
+    component: EditContent,
+    meta: { title: '发布内容', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
+  },
+  {
+    path: '/creator/contents/:id/edit',
+    component: EditContent,
+    meta: { title: '编辑内容', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
+  },
+
+  // ---------- 管理员 ----------
+  {
+    path: '/admin/categories',
+    component: CategoryManage,
+    meta: { title: '分类管理', requiresAuth: true, roles: ['ADMIN'] },
+  },
+
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
 const router = createRouter({
   history: createWebHashHistory(),
   routes,
+})
+
+/**
+ * 路由守卫（计划 Day 18）。
+ *
+ * <p>注意：这只是前端的体验层拦截，真正的权限由后端 Spring Security 决定。
+ * 前端守卫可以被绕过（改 localStorage 即可），所以两边都必须做。</p>
+ */
+router.beforeEach(async (to) => {
+  const userStore = useUserStore()
+
+  // 刷新页面后 store 里只剩 token，要先补齐用户信息才能判断角色
+  if (userStore.token && !userStore.userInfo) {
+    await userStore.fetchCurrentUser()
+  }
+
+  if (to.meta.requiresAuth && !userStore.isLoggedIn) {
+    return { path: '/login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.roles && to.meta.roles.length > 0) {
+    if (!userStore.isLoggedIn) {
+      return { path: '/login', query: { redirect: to.fullPath } }
+    }
+    if (!userStore.hasRole(...to.meta.roles)) {
+      // 已登录但角色不够：回首页，避免出现「登录了却要我登录」的困惑
+      return { path: '/' }
+    }
+  }
+
+  return true
 })
 
 router.afterEach((to) => {

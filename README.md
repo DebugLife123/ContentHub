@@ -43,6 +43,13 @@ ContentHub/
 │   ├── contenthub-admin/        # 管理端配置：Security 配置
 │   └── contenthub-web/          # Web 启动模块：Controller / Service + 配置
 ├── frontend/                    # Vue3 + TypeScript + Vite 前端
+│   └── src/
+│       ├── api/                 # 接口封装与共享类型（auth / content / category / types）
+│       ├── stores/user.ts       # Pinia 登录态
+│       ├── router/index.ts      # 路由与守卫（requiresAuth / roles）
+│       └── views/               # 首页 / 内容库 / 详情 / 登录 / 注册 / 个人中心
+│           ├── creator/         # 创作者工作台、发布与编辑
+│           └── admin/           # 分类管理
 ├── docs/
 │   └── database.sql             # 数据库建表脚本 + 演示数据（同时作为 MySQL 容器初始化脚本）
 ├── scripts/                     # 本地开发启停脚本
@@ -61,8 +68,8 @@ ContentHub/
 | 阶段 | 天数 | 主要成果 | 状态 |
 |---|---|---|---|
 | 阶段 0 | Day 1-4 | 环境、Git、项目骨架、数据库连接 | ✅ 已完成 |
-| 阶段 1 | Day 5-12 | Vue3 基础 + 用户/分类/内容基础 CRUD | 🟡 进行中 |
-| 阶段 2 | Day 13-19 | Spring Security + JWT + Redis 登录权限 | 🟡 部分完成（仅脚手架继承部分） |
+| 阶段 1 | Day 5-12 | Vue3 基础 + 用户/分类/内容基础 CRUD | ✅ 已完成（tag `v0.1`） |
+| 阶段 2 | Day 13-19 | Spring Security + JWT + Redis 登录权限 | ✅ 已完成 |
 | 阶段 3 | Day 20-29 | 内容中心：发布、详情、审核、权限访问 | ⬜ 未开始 |
 | 阶段 4 | Day 30-38 | 套餐、订阅、模拟支付、订阅到期 | ⬜ 未开始 |
 | 阶段 5 | Day 39-47 | Redis 缓存、热门、搜索、收藏、评论、历史 | ⬜ 未开始 |
@@ -70,20 +77,43 @@ ContentHub/
 | 阶段 7 | Day 56-60 | 联调、异常处理、Docker、Nginx、部署 | ⬜ 未开始 |
 | 可选升级 | Day 61-70 | Spring AI / RAG / AI 内容助手 | ⬜ 未开始 |
 
-**结论：阶段 0 已完成并通过验收；当前处于「阶段 1 中段」，约合计划的 Day 8-10。**
+**结论：阶段 0 / 1 / 2 均已完成；下一步进入阶段 3（内容中心：状态流转、审核、按订阅判断访问权限）。**
 
-### 阶段 0 已完成（含验收方式）
+### 阶段 1 与阶段 2 已完成
 
-计划阶段 0 的四条验收标准全部满足：
+计划这两阶段的验收标准与落实方式：
 
-| 计划验收标准 | 状态 | 验证方式 |
+| 阶段 | 计划验收标准 | 落实 |
 |---|---|---|
-| 能启动后端并访问一个 hello API | ✅ | `POST /admin/test`（需登录） |
-| 能启动前端并显示首页 | ✅ | `http://127.0.0.1:5175` |
-| 后端能连 MySQL | ✅ | `GET /contents` 返回 3 条种子数据 |
-| 后端能连 Redis | ✅ | `GET /admin/redis/verify`，并在 `redis-cli` 中查到明文 key |
+| 1 | 可以新增分类 | `POST /api/categories`（仅管理员），含重名与「分类下有内容不可删」校验 |
+| 1 | 可以新增/编辑/删除/分页查询内容 | `POST` / `PUT` / `DELETE /api/contents`，`GET /api/contents/page` 真分页（`PaginationInnerInterceptor`） |
+| 1 | 前端能看到内容列表和详情 | 首页、内容库（筛选+分页）、内容详情、创作者工作台、发布/编辑页、分类管理页 |
+| 1 | 分类 → 内容 → 详情跑通 | 已端到端验证 |
+| 2 | 未登录不能访问个人中心 | `GET /api/users/me` 需登录，实测 401 |
+| 2 | 普通用户不能访问创作者后台 | `GET /api/contents/mine` 需 CREATOR/ADMIN，实测 USER 403 |
+| 2 | 管理员可以进入管理页面 | `GET /api/categories/all` 需 ADMIN，实测 CREATOR 403 / ADMIN 200 |
+| 2 | Redis 可查到 token 并能测试过期 | `login:token:{token}`，值=用户名，TTL 实测 86400 秒（1440 分钟） |
 
-本轮完成的技术栈对齐（计划 §3 表 2）：
+主要实现要点：
+
+- **Redis 存 token（Day 16）**：登录成功写入 `login:token:{token}`（计划表 8 的 Key 命名），TTL 与 JWT 过期时间共用 `jwt.tokenExpireTime`；`TokenAuthenticationFilter` 在验签之后**再查一次 Redis**，因此退出登录能让 token 立即失效——纯 JWT 是签发即不可撤回的。
+- **真实角色（Day 17）**：新增 `LoginUser implements UserDetails`，携带 `userId` 与 `role`。改造前 `UserDetailServiceImpl` 把 authorities 写死成 `ADMIN`，等于任何登录用户都是管理员；现在从 `users.role` 读取并映射为 `ROLE_*`。
+- **角色授权**：`WebSecurityConfig` 按「读公开、写按角色」编排，先匹配先生效。`RestAccessDeniedHandler` 原先只打日志、不写响应体（注释里写着「预留，后面引入多角色时会用到」），现在返回 403 + 业务错误码，前端才能区分「没登录」与「登录了但权限不够」。
+- **移除废弃 API**：`JwtAuthenticationSecurityConfig` 不再继承 `SecurityConfigurerAdapter` / 使用 `http.apply()`，改为显式暴露 `DaoAuthenticationProvider` 与 `JwtAuthenticationFilter` Bean，编译告警消失。
+- **统一 API 前缀**：`server.servlet.context-path: /api`，与计划表 19 的接口约定一致。**因此 API 文档地址变为 `http://127.0.0.1:8084/api/doc.html`。**
+- **VO/DTO 分层**：接口不再直接返回 `ContentDO`（原先把 `is_deleted`、正文全文都暴露给了列表页）。新增 `ContentListVO` / `ContentDetailVO` / `CategoryVO` / `UserInfoVO` 与带 `@NotBlank`/`@Size` 校验的 Req 对象。
+- **逻辑删除**：`is_deleted` 字段加上 `@TableLogic`，`deleteById` 自动变为 `UPDATE`，查询自动过滤。
+- **归属校验**：计划里「创作者只能改自己的内容」属于阶段 3 Day 22，但 Security 只按角色放行，不做归属校验就等于任何创作者都能改别人的内容，故提前落地（非 ADMIN 且非作者本人返回 `NOT_CONTENT_OWNER`）。
+- **前端登录态与守卫（Day 18）**：`stores/user.ts` 用 Pinia 管 token 与用户信息，`router/index.ts` 用 `meta.requiresAuth` / `meta.roles` 做守卫。守卫只是体验层——前端可被绕过，真正的权限仍在后端。
+- **清理**：删除遗留商城的 `Cart`/`Order`/`Product` 全部后端模块（DO/Mapper/Service/Controller）与前端 `pages/**`、遗留组件、`api/frontend/*`；`OrderProductVO` 被 MyBatis-Plus 误扫描的启动警告随之消失。
+
+### 阶段 0 遗留说明（已在本轮处理）
+
+- ~~`JwtAuthenticationSecurityConfig` 仍使用已废弃的 `SecurityConfigurerAdapter`~~ → 阶段 2 已改为显式 Bean 装配；
+- ~~旧商城模块未删除~~ → 阶段 1 已清理；
+- `GET /api/admin/redis/verify` 是阶段 0 的验收用临时接口，仍保留（受 ADMIN 角色保护），阶段 5 落地真实缓存业务后可删除。
+
+### 阶段 0 完成的技术栈对齐（保留备查）
 
 - **Spring Boot 2.6.3 → 3.2.5**，`java.version` 8 → 17；
 - **springfox → springdoc-openapi 2.3.0**（Knife4j 换用 `knife4j-openapi3-jakarta-spring-boot-starter` 4.5.0），原 `Docket`/`@EnableSwagger2WebMvc` 重写为 `OpenAPI` + `GroupedOpenApi`；
@@ -92,63 +122,43 @@ ContentHub/
 - **`javax.*` → `jakarta.*`**：24 处（servlet 16 处、validation 3 处等），`JwtTokenHelper` 中 JDK 自带的 `javax.security.auth.login` 保持不变；
 - **Spring Security 6**：移除已删除的 `WebSecurityConfigurerAdapter`，改为 `SecurityFilterChain` Bean + Lambda DSL，`mvcMatchers` → `requestMatchers`；
 - **Redis 接入**：`spring.data.redis` 配置（Boot 3 前缀）、`RedisConfig`（key 用 String、value 用 JSON，便于 `redis-cli` 观察）、补充 `StringRedisTemplate`；
-- **前端 TypeScript**：`typescript` 5.9 + `vue-tsc`，`tsconfig.json`（`strict`，`allowJs` 渐进迁移），`vite.config.ts`，`npm run build` 已串入类型检查；核心模块 `axios` / `router` / `stores` / `composables` / `api` / `utils` 及 4 个 ContentHub 页面均已迁移为 TS。
-
-### 阶段 0 遗留说明
-
-- `contenthub-admin` 的 `JwtAuthenticationSecurityConfig` 仍使用 `SecurityConfigurerAdapter` + `http.apply()`，编译通过但有「已废弃并标记删除」告警。建议在阶段 2 重写认证与角色授权时一并改为显式注册 `AuthenticationProvider` / filter Bean；
-- 旧商城的 `Cart` / `Order` / `Product` 模块未删除，属于阶段 1 的清理范围。其中 `OrderProductVO` 被 MyBatis-Plus 误当作实体扫描，启动时会打印两条 `Can not find table primary key` 警告，随阶段 1 清理一并消失；
-- `GET /admin/redis/verify` 是阶段 0 的验收用临时接口，阶段 2 落地真实 Redis 业务后应删除。
-
-### 阶段 1 已完成
-
-- `users`、`contents` 表 + `UserDO` / `ContentDO` + Mapper；
-- 注册接口 `POST /register`（校验两次密码一致，密码用 BCrypt 加密后入库）；
-- 内容列表 `GET /contents`（支持 `contentType` 筛选）、内容详情 `GET /contents/{id}`，仅返回 `PUBLISHED` 内容；
-- 首页与内容详情页已改为从后端读取真实数据；
-- 统一返回 `Response` 与全局异常处理 `GlobalExceptionHandler`。
-
-### 阶段 1 未完成
-
-- **分类模块整体缺失**：计划表 6 中标记为"必须"的 `content_category` 表未建，无任何分类代码；
-- **内容 CRUD 缺失**：只有两个 GET，无新增 / 编辑 / 删除 / 下架；
-- **分页缺失**：列表直接 `selectList` 返回全量，未使用 MyBatis-Plus 分页；
-- 参数校验、DTO/VO 分层未覆盖内容模块；
-- 旧商城模块未替换：`Cart` / `Order` / `Product` 的 DO、Mapper、Controller、Service 全部仍在；
-- 尚未打 Git tag `v0.1`（计划 Day 12 的里程碑）。
-
-### 阶段 2 已完成
-
-- JWT 生成与解析、Spring Security 配置、BCrypt 密码编码、`POST /login` 登录链路可用；
-- `users.role` 字段与 `USER` / `CREATOR` / `ADMIN` 三角色种子数据已就绪。
-
-### 阶段 2 未完成
-
-- **token 未写入 Redis**（计划 Day 16 的核心），当前 token 只存在于 JWT 本身，前端存 `localStorage`；
-- **角色授权未做**：`WebSecurityConfig` 只保护 `/admin/**`，其余为 `anyRequest().permitAll()`，未按 USER / CREATOR / ADMIN 区分；
-- 前端无路由守卫，`stores/user.js` 与 `composables/auth.js` 未接入登录流程；
-- 缺少登出接口。
+- **前端 TypeScript**：`typescript` 5.9 + `vue-tsc`，`tsconfig.json`（`strict`，`allowJs` 渐进迁移），`vite.config.ts`，`npm run build` 已串入类型检查。
 
 ### 阶段 3 及以后
 
-均未开始。已建表但**尚无对应代码**的有：`creator_profiles`、`subscription_plans`、`subscriptions`、`favorites`、`comments`。
+阶段 3-7 与可选 AI 阶段均未开始。
 
-`CreatorDashboard.vue` 目前是纯静态假数据，不是真实接口。计划表 6 中的 `content_category`（必须）与 `reading_history`（建议）两张表尚未创建。
+已建表但**尚无对应代码**的有：`creator_profiles`、`subscription_plans`、`subscriptions`、`favorites`、`comments`；计划表 6 中标记为「建议」的 `reading_history` 尚未创建。
+
+内容状态目前只支持 `DRAFT` / `PUBLISHED` / `OFFLINE`，`PENDING` / `REJECTED` 的审核流转属于阶段 3（接口层已显式拒绝这两个值，避免出现没有审核流程却能把内容置为待审核的中间态）。
 
 ## 已实现接口
 
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| POST | `/login` | 登录，返回 JWT（计划中的 `/api/auth/login`） |
-| POST | `/register` | 注册（计划中的 `/api/auth/register`） |
-| POST | `/user/info` | 获取当前用户信息 |
-| GET | `/contents` | 查询已发布内容，可用 `?contentType=PROMPT` 筛选 |
-| GET | `/contents/{id}` | 查询单篇已发布内容 |
-| POST | `/admin/test` | 脚手架自带的 hello 接口，需登录 |
-| GET | `/admin/redis/verify` | **阶段 0 验收用**：写一个带 TTL 的 key 再读回，确认 Redis 连通 |
+所有接口统一以 `/api` 为前缀（`server.servlet.context-path`），与计划表 19 的约定一致。
 
-> 计划表 19 约定的接口前缀是 `/api/*`，当前实现尚未统一加上 `/api` 前缀，也未提供 `/api/auth/logout`。
-> 前端 Vite 已配置 `/api` → `http://localhost:8084` 并去掉前缀，因此浏览器侧通过 `/api/contents` 访问。
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| POST | `/api/auth/register` | 公开 | 注册普通用户 |
+| POST | `/api/auth/login` | 公开 | 登录，返回 JWT；token 同时写入 Redis |
+| POST | `/api/auth/logout` | 登录 | 退出登录，从 Redis 删除 token 使其立即失效 |
+| GET | `/api/users/me` | 登录 | 当前登录用户信息 |
+| GET | `/api/categories` | 公开 | 分类列表（仅启用中） |
+| GET | `/api/categories/all` | ADMIN | 全部分类（含禁用，供管理页） |
+| POST | `/api/categories` | ADMIN | 新增分类 |
+| PUT | `/api/categories/{id}` | ADMIN | 修改分类 |
+| DELETE | `/api/categories/{id}` | ADMIN | 删除分类（逻辑删除；分类下有内容时拒绝） |
+| GET | `/api/contents/page` | 公开 | 内容分页查询，支持 `categoryId` / `contentType` / `keyword` / `pageNum` / `pageSize` |
+| GET | `/api/contents/{id}` | 公开 | 内容详情（仅已发布，含正文） |
+| GET | `/api/contents/mine` | CREATOR / ADMIN | 我的内容（含草稿与下架），支持 `status` 筛选 |
+| GET | `/api/contents/mine/{id}` | CREATOR / ADMIN | 我的内容详情（不限状态，编辑草稿时回显） |
+| POST | `/api/contents` | CREATOR / ADMIN | 新增内容 |
+| PUT | `/api/contents/{id}` | CREATOR / ADMIN（仅本人） | 编辑内容 |
+| DELETE | `/api/contents/{id}` | CREATOR / ADMIN（仅本人） | 删除内容（逻辑删除） |
+| POST | `/api/admin/test` | ADMIN | 脚手架自带的 hello 接口 |
+| GET | `/api/admin/redis/verify` | ADMIN | 阶段 0 验收用：写一个带 TTL 的 key 再读回 |
+
+> **`/api/contents/mine` 的匹配顺序**：Security 里「需要登录」的规则必须写在「公开 GET」规则之前，否则会被后者覆盖。
+> 同理，Spring MVC 优先匹配字面量路径，因此 `/contents/mine` 不会被 `/contents/{id}` 当成 `id="mine"`。
 
 ## 演示账号
 
@@ -240,7 +250,7 @@ npm install
 npm run dev -- --host 127.0.0.1
 ```
 
-后端地址 `http://127.0.0.1:8084`，API 文档 `http://127.0.0.1:8084/doc.html`，前端 `http://127.0.0.1:5175`（Vite 将 `/api/*` 代理到 `http://127.0.0.1:8084/*`）。
+后端地址 `http://127.0.0.1:8084`，API 文档 `http://127.0.0.1:8084/api/doc.html`，前端 `http://127.0.0.1:5175`（Vite 将 `/api/*` 原样转发到 `http://127.0.0.1:8084/api/*`）。
 
 数据库无需手动初始化：`docs/database.sql` 已挂载到 MySQL 容器的 `/docker-entrypoint-initdb.d/`，首次创建数据卷时自动建表并写入演示数据。要重置数据库：
 
@@ -252,10 +262,10 @@ docker compose up -d        # 重新初始化
 ### Redis 连通性验收（阶段 0）
 
 ```powershell
-# 先登录拿 token，再用 token 访问验收接口
-$login = Invoke-RestMethod http://127.0.0.1:8084/login -Method Post `
-  -Body '{"username":"creator","password":"123456"}' -ContentType 'application/json'
-Invoke-RestMethod http://127.0.0.1:8084/admin/redis/verify `
+# 先登录拿 token，再用 token 访问验收接口（该接口需要 ADMIN 角色）
+$login = Invoke-RestMethod http://127.0.0.1:8084/api/auth/login -Method Post `
+  -Body '{"username":"admin","password":"123456"}' -ContentType 'application/json'
+Invoke-RestMethod http://127.0.0.1:8084/api/admin/redis/verify `
   -Headers @{ Authorization = "Bearer $($login.data.token)" } | ConvertTo-Json
 
 # 直接在 Redis 中确认 key 存在且是明文
@@ -264,22 +274,46 @@ docker exec contenthub-redis redis-cli get "contenthub:stage0:ping"
 
 预期 `matched` 为 `true`，且 `redis-cli` 能读到明文的 `pong@...` 值。
 
+### 登录态验收（阶段 2）
+
+```powershell
+$login = Invoke-RestMethod http://127.0.0.1:8084/api/auth/login -Method Post `
+  -Body '{"username":"creator","password":"123456"}' -ContentType 'application/json'
+$token = $login.data.token
+
+# 1) token 已写入 Redis，TTL 与 JWT 一致（1440 分钟 = 86400 秒）
+docker exec contenthub-redis redis-cli get "login:token:$token"
+docker exec contenthub-redis redis-cli ttl "login:token:$token"
+
+# 2) 退出登录后同一个 token 立即失效（纯 JWT 做不到）
+Invoke-RestMethod http://127.0.0.1:8084/api/auth/logout -Method Post -Headers @{ Authorization = "Bearer $token" }
+docker exec contenthub-redis redis-cli exists "login:token:$token"   # 期望 0
+```
+
 ### 接口快速验证
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8084/contents | ConvertTo-Json -Depth 5
-Invoke-RestMethod http://127.0.0.1:8084/contents/1 | ConvertTo-Json -Depth 5
+Invoke-RestMethod http://127.0.0.1:8084/api/contents/page | ConvertTo-Json -Depth 5
+Invoke-RestMethod http://127.0.0.1:8084/api/contents/1 | ConvertTo-Json -Depth 5
+Invoke-RestMethod http://127.0.0.1:8084/api/categories | ConvertTo-Json -Depth 5
 ```
+
+> **Windows PowerShell 5.1 提示**：`Invoke-RestMethod` 在响应未声明 `charset` 时会按 ISO-8859-1 解码，中文会显示成乱码；URL 里的中文也不会自动编码。
+> 上面的命令看结构没问题，但若要**断言中文内容**，请显式解码并编码参数：
+> ```powershell
+> $resp = Invoke-WebRequest 'http://127.0.0.1:8084/api/contents/1' -UseBasicParsing
+> ([System.Text.Encoding]::UTF8.GetString($resp.RawContentStream.ToArray()) | ConvertFrom-Json).data.title
+> $kw = [uri]::EscapeDataString('前端')
+> Invoke-RestMethod "http://127.0.0.1:8084/api/contents/page?keyword=$kw"
+> ```
 
 ## 下一步（严格按计划的阶段顺序）
 
-1. **收尾阶段 1（Day 5-12）**：建 `content_category` 表并给 `contents` 补 `category_id`，完成分类 CRUD；补齐内容新增/编辑/删除与分页查询（需先在 `MybatisPlusConfig` 装配 `PaginationInnerInterceptor`）；替换掉遗留的 Cart / Order / Product 商城模块；打通"分类 → 内容 → 详情"并打 tag `v0.1`。
-2. **阶段 2（Day 13-19）**：token 写入 Redis 并设置过期；落地 USER / CREATOR / ADMIN 角色授权；前端登录态与路由守卫；完成权限越权测试（顺带清理阶段 0 遗留的 `SecurityConfigurerAdapter` 废弃用法）。
-3. **阶段 3（Day 20-29）**：创作者资料、内容状态流转（DRAFT / PENDING / PUBLISHED / REJECTED / OFFLINE）、管理员审核、免费与付费内容的访问权限判断、收藏。
-4. **阶段 4（Day 30-38）**：订阅套餐、模拟支付、创建订阅并计算起止时间、访问内容时校验有效订阅、我的订阅页，打 tag `v0.2`。
-5. **阶段 5（Day 39-47）**：内容详情缓存、热门内容 ZSet、浏览量 INCR 与定时同步 MySQL、关键词搜索、评论、阅读历史。
-6. **阶段 6（Day 48-55）**：创作者仪表盘与内容管理、管理员用户/分类/内容/评论/套餐管理、前端按角色动态显示菜单。
-7. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、Docker 容器化、Docker Compose、Nginx 反向代理、部署、整理 README 与截图，打 tag `v1.0`。
+1. **阶段 3（Day 20-29）**：创作者资料（`creator_profiles` 目前只有表）、状态流转补齐 `PENDING` / `REJECTED`、管理员审核接口与审核页、按 `access_type` 与有效订阅判断内容访问权限（无权限时只返回预览）、收藏。
+2. **阶段 4（Day 30-38）**：订阅套餐、模拟支付、创建订阅并计算起止时间、访问内容时校验有效订阅、我的订阅页，打 tag `v0.2`。
+3. **阶段 5（Day 39-47）**：内容详情缓存、热门内容 ZSet、浏览量 INCR 与定时同步 MySQL、评论、阅读历史（`reading_history` 表待建）。
+4. **阶段 6（Day 48-55）**：创作者仪表盘增强、管理员用户/内容/评论/套餐管理、前端按角色动态显示菜单（分类管理页已完成）。
+5. **阶段 7（Day 56-60）**：补齐异常处理与参数校验、Docker 构建前后端、扩展 `docker-compose.yml` 加入 backend + nginx、Nginx 反向代理、部署、整理截图，打 tag `v1.0`。
 
 ## 文档
 

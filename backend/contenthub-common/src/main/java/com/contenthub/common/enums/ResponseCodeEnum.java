@@ -21,6 +21,13 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     LOGIN_FAIL("20000", "登录失败"),
     USERNAME_OR_PWD_ERROR("20001", "用户名或密码错误"),
     UNAUTHORIZED("20002", "无访问权限，请先登录！"),
+    FORBIDDEN("20004", "权限不足，无法访问该资源"),
+    USERNAME_EXISTS("20005", "该用户名已被注册"),
+    CONTENT_NOT_FOUND("20006", "内容不存在或尚未发布"),
+    CATEGORY_NOT_FOUND("20007", "分类不存在"),
+    CATEGORY_NAME_EXISTS("20008", "该分类名称已存在"),
+    NOT_CONTENT_OWNER("20009", "只能操作自己发布的内容"),
+    CATEGORY_IN_USE("20010", "该分类下还有内容，无法删除"),
     SELECT_FAIL("20003","查询数据库时出错");
     // 异常码
     private String errorCode;

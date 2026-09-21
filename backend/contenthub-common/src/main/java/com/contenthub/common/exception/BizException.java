@@ -20,4 +20,12 @@ public class BizException extends RuntimeException {
         this.errorCode = baseExceptionInterface.getErrorCode();
         this.errorMessage = baseExceptionInterface.getErrorMessage();
     }
+
+    /**
+     * 需要拼接动态提示时的构造函数，例如把校验规则写进消息里。
+     */
+    public BizException(String errorCode, String errorMessage) {
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+    }
 }

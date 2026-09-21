@@ -1,27 +1,12 @@
 package com.contenthub.web.service;
 
 import com.contenthub.common.utils.Response;
-import com.contenthub.common.domain.dos.UserDO;
-import org.springframework.stereotype.Service;
-
+import com.contenthub.web.model.vo.UserInfoVO;
 
 public interface UserService {
-    /**
-     * 获取当前登录用户信息
-     * @return
-     */
-    Response findUserInfo();
 
     /**
-     * 获取当前登录用户
-     * @return {@link UserDO}
+     * 当前登录用户信息（计划表 19：GET /api/users/me）。
      */
-    UserDO findUserByName();
-
-    /**
-     * 用户注册
-     * @param username
-     * @param password
-     */
-    void registerUser(String username, String password);
+    Response<UserInfoVO> currentUser();
 }

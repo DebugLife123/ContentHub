@@ -110,7 +110,7 @@ if (-not $redisOk) { throw 'Redis 在 60 秒内未就绪（详见 docker logs co
 Say 'Redis 已就绪（contenthub-redis:6380）。'
 
 # --------------------------------------------------------------- 2. 后端 8084
-$backendCheck = { Test-HttpOk -Url 'http://127.0.0.1:8084/contents' }
+$backendCheck = { Test-HttpOk -Url 'http://127.0.0.1:8084/api/contents/page' }
 
 if ($Restart) {
     & (Join-Path $PSScriptRoot 'dev-down.ps1') -Quiet

@@ -1,3 +1,11 @@
+server:
+  # 计划表 19 约定所有业务接口以 /api 开头。
+  # 用 context-path 统一加前缀，这样 Security 的路径匹配写的是
+  # context 内的 /contents、/admin 等，而外部访问是 /api/contents、/api/admin。
+  # 注意：API 文档地址因此变为 http://127.0.0.1:8084/api/doc.html
+  servlet:
+    context-path: /api
+
 spring:
   profiles:
     active: dev

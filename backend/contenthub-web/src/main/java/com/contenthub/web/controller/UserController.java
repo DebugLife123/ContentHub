@@ -1,36 +1,28 @@
 package com.contenthub.web.controller;
 
-import com.contenthub.common.aspect.ApiOperationLog;
 import com.contenthub.common.utils.Response;
+import com.contenthub.web.model.vo.UserInfoVO;
 import com.contenthub.web.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Tag(name = "用户与认证")
+@RequestMapping("/users")
+@Tag(name = "用户")
 public class UserController {
-    @Autowired
-    private UserService userService;
 
-    @PostMapping("/user/info")
-    @Operation(summary = "获取用户信息")
-    @ApiOperationLog(description = "获取用户信息")
-    public Response findUserInfo() {
-        return userService.findUserInfo();
+    private final UserService userService;
+
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
-    @PostMapping("/register")
-    @Operation(summary = "用户注册")
-    @ApiOperationLog(description = "用户注册")
-    public Response registerUser(@RequestParam String username, @RequestParam String password, @RequestParam String confirmPassword) {
-        if (!password.equals(confirmPassword)) {
-            return Response.fail("两次输入的密码不相等");
-        }
-        userService.registerUser(username,password);
-        return Response.success();
+    @GetMapping("/me")
+    @Operation(summary = "当前登录用户信息")
+    public Response<UserInfoVO> me() {
+        return userService.currentUser();
     }
 }

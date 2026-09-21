@@ -1,5 +1,7 @@
 package com.contenthub.jwt.filter;
 
+import com.contenthub.jwt.model.LoginUser;
+import com.contenthub.jwt.service.LoginTokenService;
 import com.contenthub.jwt.utils.JwtTokenHelper;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
@@ -10,16 +12,11 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationServiceException;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.authentication.CredentialsExpiredException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
-import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import jakarta.servlet.FilterChain;
@@ -28,8 +25,17 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Objects;
+
+/**
+ * 每次请求校验 Authorization 头里的 JWT。
+ *
+ * <p>阶段 2 在原有「校验签名与过期时间」之上增加了 Redis 校验：
+ * token 必须在 Redis 中存在才算有效。这样退出登录后旧 token 立即失效，
+ * 而不是等它自然过期（纯 JWT 是签发即不可撤回的）。</p>
+ */
 @Slf4j
 public class TokenAuthenticationFilter extends OncePerRequestFilter {
+
     @Value("${jwt.tokenPrefix}")
     private String tokenPrefix;
 
@@ -43,26 +49,24 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
     private UserDetailsService userDetailsService;
 
     @Autowired
+    private LoginTokenService loginTokenService;
+
+    @Autowired
     private AuthenticationEntryPoint authenticationEntryPoint;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        // 从请求头中获取 key 为 Authorization 的值
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader(tokenHeaderKey);
 
-        // 判断 value 值是否以 Bearer 开头
         if (StringUtils.startsWith(header, tokenPrefix)) {
-            // 截取 Token 令牌
+            // 去掉 "Bearer " 前缀
             String token = StringUtils.substring(header, 7);
-            log.info("Token: {}", token);
 
-            // 判空 Token
             if (StringUtils.isNotBlank(token)) {
                 try {
-                    // 校验 Token 是否可用, 若解析异常，针对不同异常做出不同的响应参数
                     jwtTokenHelper.validateToken(token);
                 } catch (SignatureException | MalformedJwtException | UnsupportedJwtException | IllegalArgumentException e) {
-                    // 抛出异常，统一让 AuthenticationEntryPoint 处理响应参数
                     authenticationEntryPoint.commence(request, response, new AuthenticationServiceException("Token 不可用"));
                     return;
                 } catch (ExpiredJwtException e) {
@@ -70,24 +74,31 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
-                // 从 Token 中解析出用户名
+                // Redis 中不存在 => 已退出登录（或被服务端主动失效）
+                if (!loginTokenService.isActive(token)) {
+                    authenticationEntryPoint.commence(request, response,
+                            new AuthenticationServiceException("登录状态已失效，请重新登录"));
+                    return;
+                }
+
                 String username = jwtTokenHelper.getUsernameByToken(token);
                 if (StringUtils.isNotBlank(username)
                         && Objects.isNull(SecurityContextHolder.getContext().getAuthentication())) {
-                    // 根据用户名获取用户详情信息
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                    // 将用户信息存入 authentication，方便后续校验
-                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null,
-                            userDetails.getAuthorities());
+                    var userDetails = userDetailsService.loadUserByUsername(username);
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    // 将 authentication 存入 ThreadLocal，方便后续获取用户信息
                     SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    if (log.isDebugEnabled() && userDetails instanceof LoginUser loginUser) {
+                        log.debug("已认证用户 {}，角色 {}", loginUser.getUsername(), loginUser.getRole());
+                    }
                 }
             }
         }
 
-        // 继续执行写一个过滤器
         filterChain.doFilter(request, response);
     }
 }

@@ -3,49 +3,47 @@ package com.contenthub.jwt.config;
 import com.contenthub.jwt.filter.JwtAuthenticationFilter;
 import com.contenthub.jwt.handler.RestAuthenticationFailureHandler;
 import com.contenthub.jwt.handler.RestAuthenticationSuccessHandler;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
-import org.springframework.security.config.annotation.SecurityConfigurerAdapter;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.web.DefaultSecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+/**
+ * 登录认证相关 Bean。
+ *
+ * <p>改造前这里继承 {@code SecurityConfigurerAdapter} 并通过 {@code http.apply(...)} 注册，
+ * 该 API 在 Spring Security 6 已标记「废弃并将在后续版本删除」，编译时会告警。
+ * 现在改为直接暴露 {@link DaoAuthenticationProvider} 与 {@link JwtAuthenticationFilter}
+ * 两个 Bean，由 {@code WebSecurityConfig} 显式装配，不再依赖已废弃的扩展点。</p>
+ */
 @Configuration
-public class JwtAuthenticationSecurityConfig extends SecurityConfigurerAdapter<DefaultSecurityFilterChain, HttpSecurity> {
-    @Autowired
-    private RestAuthenticationSuccessHandler restAuthenticationSuccessHandler;
+public class JwtAuthenticationSecurityConfig {
 
-    @Autowired
-    private RestAuthenticationFailureHandler restAuthenticationFailureHandler;
-
-    @Autowired
-    private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private UserDetailsService userDetailsService;
-
-    @Override
-    public void configure(HttpSecurity httpSecurity) throws Exception {
-        // 自定义的用于 JWT 身份验证的过滤器
-        JwtAuthenticationFilter filter = new JwtAuthenticationFilter();
-        filter.setAuthenticationManager(httpSecurity.getSharedObject(AuthenticationManager.class));
-
-        // 设置登录认证对应的处理类（成功处理、失败处理）
-        filter.setAuthenticationSuccessHandler(restAuthenticationSuccessHandler);
-        filter.setAuthenticationFailureHandler(restAuthenticationFailureHandler);
-
-        // 直接使用 DaoAuthenticationProvider, 它是 Spring Security 提供的默认的身份验证提供者之一
+    /**
+     * 用户名 + 密码的认证提供者。
+     */
+    @Bean
+    public DaoAuthenticationProvider daoAuthenticationProvider(UserDetailsService userDetailsService,
+                                                               PasswordEncoder passwordEncoder) {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        // 设置 userDetailService，用于获取用户的详细信息
         provider.setUserDetailsService(userDetailsService);
-        // 设置加密算法
         provider.setPasswordEncoder(passwordEncoder);
-        httpSecurity.authenticationProvider(provider);
-        // 将这个过滤器添加到 UsernamePasswordAuthenticationFilter 之前执行
-        httpSecurity.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class);
+        return provider;
+    }
+
+    /**
+     * 处理 {@code POST /auth/login} 的过滤器。
+     */
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationManager authenticationManager,
+                                                           RestAuthenticationSuccessHandler successHandler,
+                                                           RestAuthenticationFailureHandler failureHandler) {
+        JwtAuthenticationFilter filter = new JwtAuthenticationFilter();
+        filter.setAuthenticationManager(authenticationManager);
+        filter.setAuthenticationSuccessHandler(successHandler);
+        filter.setAuthenticationFailureHandler(failureHandler);
+        return filter;
     }
 }

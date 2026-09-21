@@ -11,10 +11,11 @@ export default defineConfig({
   server: {
     port: 5175,
     proxy: {
+      // 后端已用 server.servlet.context-path=/api 统一加前缀，
+      // 因此这里不剥掉 /api，原样转发。
       '/api': {
         target: 'http://localhost:8084',
         changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/api/, ''),
       },
     },
   },

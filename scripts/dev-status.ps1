@@ -67,10 +67,10 @@ foreach ($item in @(
 
 Write-Head '接口自检'
 try {
-    $c = Invoke-RestMethod 'http://127.0.0.1:8084/contents' -TimeoutSec 5
-    Write-Host ("  GET /contents        success={0} 条数={1}" -f $c.success, $c.data.Count) -ForegroundColor Green
+    $c = Invoke-RestMethod 'http://127.0.0.1:8084/api/contents/page' -TimeoutSec 5
+    Write-Host ("  GET /api/contents/page  success={0} 总数={1}" -f $c.success, $c.data.total) -ForegroundColor Green
 } catch {
-    Write-Host '  GET /contents        不可用' -ForegroundColor Yellow
+    Write-Host '  GET /api/contents/page  不可用' -ForegroundColor Yellow
 }
 try {
     $h = Invoke-WebRequest 'http://127.0.0.1:5175/' -Headers @{ Accept = 'text/html' } -TimeoutSec 5 -UseBasicParsing

@@ -2,7 +2,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { getContent, type ContentItem } from '../api/content'
+import { getContent } from '../api/content'
+import type { ContentItem } from '../api/types'
 
 const route = useRoute()
 const loading = ref(true)
@@ -15,7 +16,7 @@ const EMPTY_CONTENT: ContentItem = {
   title: '',
   contentType: '',
   accessType: '',
-  status: '',
+  status: 'DRAFT',
 }
 
 const content = ref<ContentItem>(EMPTY_CONTENT)
