@@ -34,7 +34,13 @@
     <div v-else-if="!items.length" class="empty-state">没有符合条件的内容。</div>
     <div v-else class="content-grid">
       <article v-for="item in items" :key="item.id" class="content-card" @click="$router.push(`/content/${item.id}`)">
-        <div class="content-cover" :class="themeOf(item.id)">
+        <!-- 创作者上传过封面就用图片；没上传则回落到按 id 生成的色块 + 标题文字 -->
+        <div v-if="item.cover" class="content-cover is-image">
+          <img :src="item.cover" :alt="item.title">
+          <span class="cover-type">{{ item.contentType }}</span>
+          <span class="cover-arrow">↗</span>
+        </div>
+        <div v-else class="content-cover" :class="themeOf(item.id)">
           <span class="cover-type">{{ item.contentType }}</span>
           <strong>{{ coverText(item.title) }}</strong>
           <span class="cover-arrow">↗</span>
@@ -168,6 +174,33 @@ onMounted(async () => {
 }
 .category-row span {
   user-select: none;
+}
+/* 上传了封面的卡片：图片铺满，类型标签浮在左上角 */
+.content-cover.is-image {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+}
+.content-cover.is-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s;
+}
+.content-card:hover .content-cover.is-image img {
+  transform: scale(1.04);
+}
+.content-cover.is-image .cover-type {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(245, 242, 236, 0.9);
+  padding: 3px 8px;
+}
+.content-cover.is-image .cover-arrow {
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
 }
 .pager {
   display: flex;

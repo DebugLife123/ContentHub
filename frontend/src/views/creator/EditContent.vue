@@ -46,6 +46,28 @@
                   placeholder="列表页展示的简介" />
       </el-form-item>
 
+      <el-form-item label="封面">
+        <div class="cover-field">
+          <div v-if="form.cover" class="cover-preview">
+            <!-- 地址是 /api/files/... 同源路径，直接用即可 -->
+            <img :src="form.cover" alt="封面预览">
+            <div class="cover-actions">
+              <el-button size="small" :loading="uploadingCover" @click="coverInput?.click()">更换</el-button>
+              <el-button size="small" @click="form.cover = ''">移除</el-button>
+            </div>
+          </div>
+          <div v-else class="cover-empty">
+            <el-button :loading="uploadingCover" @click="coverInput?.click()">
+              {{ uploadingCover ? '上传中…' : '上传封面' }}
+            </el-button>
+            <span class="cover-hint">jpg / png / gif / webp，单张不超过 50MB</span>
+          </div>
+          <el-input v-model="form.cover" class="cover-url" placeholder="也可以直接粘贴图片地址" />
+          <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp"
+                 hidden @change="onPickCover">
+        </div>
+      </el-form-item>
+
       <el-form-item label="正文（Markdown-lite，预览与读者端一致）">
         <ArticleEditor v-model="form.body" placeholder="从这里开始写。支持标题、代码块、引用、提示框、表格、任务列表…点上方工具栏或查看「语法速查」。" />
       </el-form-item>
@@ -69,8 +91,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createContent, getMyContent, updateContent } from '@/api/content'
+import { uploadFile } from '@/api/file'
 import { listCategories } from '@/api/category'
 import type { Category, ContentPayload, ContentStatus } from '@/api/types'
 import ArticleEditor from '@/components/article/ArticleEditor.vue'
@@ -84,6 +108,34 @@ const saving = ref(false)
 const error = ref('')
 const success = ref('')
 const categories = ref<Category[]>([])
+
+// ---------------------------------------------------------------- 封面上传
+
+const uploadingCover = ref(false)
+const coverInput = ref<HTMLInputElement>()
+
+async function onPickCover(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  uploadingCover.value = true
+  try {
+    const res = await uploadFile(file)
+    if (res.data.success) {
+      form.cover = res.data.data.url
+      ElMessage.success('封面已上传')
+    } else {
+      ElMessage.error(res.data.message || '上传失败')
+    }
+  } catch (err) {
+    ElMessage.error(err instanceof Error ? err.message : '上传失败')
+  } finally {
+    uploadingCover.value = false
+    // 清空 input，否则第二次选同一个文件不触发 change（表现为「点了没反应」）
+    input.value = ''
+  }
+}
 
 const contentId = computed(() => {
   const raw = route.params.id
@@ -216,9 +268,47 @@ onMounted(async () => {
   border: 1px solid var(--line);
   color: var(--muted);
 }
+.cover-field {
+  width: 100%;
+}
+.cover-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.cover-preview img {
+  width: 240px;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  display: block;
+}
+.cover-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cover-empty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.cover-hint {
+  font: 10px 'DM Mono', monospace;
+  color: var(--muted);
+}
+.cover-url {
+  margin-top: 12px;
+}
 @media (max-width: 800px) {
   .form-row {
     grid-template-columns: 1fr;
+  }
+  .cover-preview {
+    flex-direction: column;
+  }
+  .cover-preview img {
+    width: 100%;
   }
 }
 </style>

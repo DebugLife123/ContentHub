@@ -813,6 +813,15 @@
   color: var(--muted);
 }
 
+// 创作者上传的封面。没上传时整个块不渲染，不会留一块空白
+.art-cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border: 1px solid var(--line);
+}
+
 .art-author {
   display: flex;
   gap: 12px;

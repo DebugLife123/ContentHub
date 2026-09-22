@@ -1,5 +1,10 @@
 <template>
   <aside>
+    <!-- 封面（创作者上传过才显示；没上传就不占位置） -->
+    <div v-if="article.cover" class="art-aside-block">
+      <img class="art-cover" :src="article.cover" :alt="article.title">
+    </div>
+
     <!-- 作者 -->
     <div class="art-aside-block">
       <p class="art-aside-title">作者</p>

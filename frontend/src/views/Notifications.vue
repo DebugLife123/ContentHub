@@ -51,20 +51,24 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { markAllNotificationsRead, markNotificationRead, myNotifications } from '@/api/notification'
+import { myNotifications } from '@/api/notification'
 import type { NotificationItem } from '@/api/notification'
+import { useNotificationStore } from '@/stores/notification'
 
 const router = useRouter()
+const notificationStore = useNotificationStore()
 
 const loading = ref(true)
 const items = ref<NotificationItem[]>([])
 const total = ref(0)
-const unread = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(10)
 const unreadOnly = ref(false)
+
+/** 顶栏角标与这里的「未读 N 条」共用同一个计数，避免两处对不上 */
+const unread = computed(() => notificationStore.unread)
 
 const TYPE_LABEL: Record<string, string> = {
   CONTENT_APPROVED: '内容通过',
@@ -86,7 +90,6 @@ async function load() {
     if (res.data.success) {
       items.value = res.data.data.list
       total.value = res.data.data.total
-      unread.value = items.value.filter((n) => !n.read).length
     }
   } catch {
     items.value = []
@@ -94,6 +97,8 @@ async function load() {
   } finally {
     loading.value = false
   }
+  // 未读数以服务端为准刷新一次（列表只含当前页，不能拿来数未读）
+  await notificationStore.refresh()
 }
 
 function reload() {
@@ -110,9 +115,9 @@ function handlePageChange(p: number) {
 async function open(n: NotificationItem) {
   if (!n.read) {
     try {
-      await markNotificationRead(n.id)
+      // 走 store：标记成功的同时把顶栏角标一起减掉，不用刷新页面
+      await notificationStore.readOne(n.id)
       n.read = true
-      unread.value = Math.max(0, unread.value - 1)
     } catch { /* 标记失败不影响跳转 */ }
   }
   if (n.bizType === 'CONTENT' && n.bizId) {
@@ -124,8 +129,8 @@ async function open(n: NotificationItem) {
 
 async function readAll() {
   try {
-    const res = await markAllNotificationsRead()
-    if (res.data.success) await load()
+    await notificationStore.readAll()
+    await load()
   } catch { /* 忽略 */ }
 }
 

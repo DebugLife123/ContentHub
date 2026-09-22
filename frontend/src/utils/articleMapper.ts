@@ -72,6 +72,7 @@ export function toArticle(content: ContentItem): Article {
     id: content.id,
     title: content.title,
     summary: content.summary || '',
+    cover: content.cover || undefined,
     category: content.categoryName || '未分类',
     contentType: contentTypeLabel(content.contentType),
     accessType: content.accessType,

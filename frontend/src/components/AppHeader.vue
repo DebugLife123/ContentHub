@@ -53,32 +53,20 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
-import { unreadNotificationCount } from '@/api/notification'
+import { useNotificationStore } from '@/stores/notification'
 
 const userStore = useUserStore()
+const notificationStore = useNotificationStore()
 const router = useRouter()
 
-/** 未读通知数，给顶栏铃铛做角标 */
-const unread = ref(0)
-
-async function refreshUnread() {
-  if (!userStore.isLoggedIn) {
-    unread.value = 0
-    return
-  }
-  try {
-    const res = await unreadNotificationCount()
-    if (res.data.success) unread.value = res.data.data ?? 0
-  } catch {
-    unread.value = 0
-  }
-}
+/** 未读通知数来自 store：通知页读完之后角标会立刻跟着变，不用刷新页面 */
+const unread = computed(() => notificationStore.unread)
 
 // 登录/退出后立刻刷新角标，不用等下一次进页面
-watch(() => userStore.isLoggedIn, refreshUnread)
+watch(() => userStore.isLoggedIn, () => notificationStore.refresh())
 
 /** 管理员同时具备创作者能力，与后端 Security 规则保持一致 */
 const canCreate = computed(() => userStore.hasRole('CREATOR', 'ADMIN'))
@@ -103,7 +91,7 @@ onMounted(async () => {
   if (userStore.token && !userStore.userInfo) {
     await userStore.fetchCurrentUser()
   }
-  await refreshUnread()
+  await notificationStore.refresh()
 })
 </script>
 

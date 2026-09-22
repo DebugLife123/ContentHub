@@ -170,6 +170,8 @@ export interface Article {
   id: number
   title: string
   summary: string
+  /** 创作者上传的封面地址，没上传时为 undefined（列表与侧栏回落到生成的文字封面） */
+  cover?: string
   category: string
   contentType: string
   accessType: string
