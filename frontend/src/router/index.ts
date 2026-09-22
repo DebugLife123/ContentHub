@@ -14,6 +14,7 @@ import MySubscriptions from '../views/subscription/MySubscriptions.vue'
 import CreatorDashboard from '../views/CreatorDashboard.vue'
 import CreatorProfile from '../views/creator/Profile.vue'
 import CreatorPlans from '../views/creator/Plans.vue'
+import CreatorRevenue from '../views/creator/Revenue.vue'
 import EditContent from '../views/creator/EditContent.vue'
 import CategoryManage from '../views/admin/CategoryManage.vue'
 import ContentReview from '../views/admin/ContentReview.vue'
@@ -78,6 +79,11 @@ const routes: RouteRecordRaw[] = [
     path: '/creator/plans',
     component: CreatorPlans,
     meta: { title: '订阅套餐管理', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
+  },
+  {
+    path: '/creator/revenue',
+    component: CreatorRevenue,
+    meta: { title: '创作者收益', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
   {
     path: '/creator/contents/new',

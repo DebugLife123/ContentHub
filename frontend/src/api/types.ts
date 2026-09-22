@@ -171,7 +171,8 @@ export interface Subscription {
   creatorName?: string | null
   startTime: string
   endTime: string
-  status: 'ACTIVE' | 'EXPIRED' | 'CANCELED'
+  /** ACTIVE 生效中 / EXPIRED 已过期 / CANCELED 已终止 / REFUNDED 已退款 */
+  status: 'ACTIVE' | 'EXPIRED' | 'CANCELED' | 'REFUNDED'
   remainingDays: number
   valid: boolean
   createTime?: string
@@ -339,6 +340,28 @@ export interface SkillPayload {
   teamOpenIssues?: number
   teamLastCommit?: string | null
   accessType: SkillAccess
+}
+
+/** 创作者收益（口径：已支付且未退款的订阅金额） */
+export interface CreatorRevenue {
+  totalRevenue: number
+  refundedAmount: number
+  subscriptionCount: number
+  activeCount: number
+  byPlan: {
+    planId: number
+    planName: string
+    price: number
+    count: number
+    amount: number
+  }[]
+  monthly: {
+    /** yyyy-MM */
+    month: string
+    count: number
+    amount: number
+  }[]
+  recent: Subscription[]
 }
 
 /** 创作者仪表盘统计（阶段 6 Day 48） */

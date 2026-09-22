@@ -17,3 +17,18 @@ export function mySubscriptions(pageNum = 1, pageSize = 10) {
     params: { pageNum, pageSize },
   })
 }
+
+/**
+ * 提前终止订阅。
+ *
+ * 终止后立即失去访问权限——后端鉴权条件是「status = ACTIVE 且 end_time 未过」，
+ * 状态一变就不再有效，不需要等定时任务。
+ */
+export function cancelSubscription(id: number) {
+  return api.post<ApiResponse<void>>(`/subscriptions/${id}/cancel`)
+}
+
+/** 模拟退款（置为 REFUNDED，同样立即失去权限） */
+export function refundSubscription(id: number) {
+  return api.post<ApiResponse<void>>(`/subscriptions/${id}/refund`)
+}

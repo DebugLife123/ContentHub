@@ -1,5 +1,5 @@
 import api from '../axios'
-import type { ApiResponse, CreatorApplication, CreatorDashboard, CreatorProfile } from './types'
+import type { ApiResponse, CreatorApplication, CreatorDashboard, CreatorProfile, CreatorRevenue } from './types'
 
 /**
  * 提交创作者申请。
@@ -35,4 +35,14 @@ export function getCreatorProfile(userId: number) {
 /** 创作者仪表盘统计（阶段 6 Day 48） */
 export function getCreatorDashboard() {
   return api.get<ApiResponse<CreatorDashboard>>('/creator/dashboard')
+}
+
+/**
+ * 创作者收益。
+ *
+ * 口径：已支付且未退款的订阅金额。提前终止（CANCELED）仍计入，
+ * 只有退款（REFUNDED）才从收益里扣掉。
+ */
+export function getCreatorRevenue() {
+  return api.get<ApiResponse<CreatorRevenue>>('/creator/revenue')
 }

@@ -8,6 +8,7 @@
       <div class="head-actions">
         <el-button @click="$router.push('/creator/profile')">创作者资料</el-button>
         <el-button @click="$router.push('/creator/plans')">订阅套餐</el-button>
+        <el-button @click="$router.push('/creator/revenue')">收益</el-button>
         <el-button class="button button-dark" @click="$router.push('/creator/contents/new')">
           发布新内容 <span>↗</span>
         </el-button>

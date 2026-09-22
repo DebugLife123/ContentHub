@@ -44,4 +44,16 @@ public class SubscriptionController {
             @RequestParam(defaultValue = "10") long pageSize) {
         return subscriptionService.mySubscriptions(pageNum, pageSize);
     }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "提前终止订阅（立即失去访问权限）")
+    public Response<Void> cancel(@PathVariable Long id) {
+        return subscriptionService.cancel(id);
+    }
+
+    @PostMapping("/{id}/refund")
+    @Operation(summary = "模拟退款（置为 REFUNDED，立即失去访问权限）")
+    public Response<Void> refund(@PathVariable Long id) {
+        return subscriptionService.refund(id);
+    }
 }

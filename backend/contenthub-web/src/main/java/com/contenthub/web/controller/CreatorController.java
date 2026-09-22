@@ -6,8 +6,10 @@ import com.contenthub.web.model.req.CreatorProfileReqVO;
 import com.contenthub.web.model.vo.CreatorApplicationVO;
 import com.contenthub.web.model.vo.CreatorDashboardVO;
 import com.contenthub.web.model.vo.CreatorProfileVO;
+import com.contenthub.web.model.vo.CreatorRevenueVO;
 import com.contenthub.web.service.CreatorApplicationService;
 import com.contenthub.web.service.CreatorService;
+import com.contenthub.web.service.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.validation.annotation.Validated;
@@ -32,11 +34,14 @@ public class CreatorController {
 
     private final CreatorService creatorService;
     private final CreatorApplicationService creatorApplicationService;
+    private final SubscriptionService subscriptionService;
 
     public CreatorController(CreatorService creatorService,
-                             CreatorApplicationService creatorApplicationService) {
+                             CreatorApplicationService creatorApplicationService,
+                             SubscriptionService subscriptionService) {
         this.creatorService = creatorService;
         this.creatorApplicationService = creatorApplicationService;
+        this.subscriptionService = subscriptionService;
     }
 
     @PostMapping("/creator/apply")
@@ -67,6 +72,12 @@ public class CreatorController {
     @Operation(summary = "创作者仪表盘统计（内容数 / 阅读量 / 收藏量 / 订阅人数）")
     public Response<CreatorDashboardVO> dashboard() {
         return creatorService.dashboard();
+    }
+
+    @GetMapping("/creator/revenue")
+    @Operation(summary = "创作者收益（累计 / 按套餐 / 按月 / 最近订单）")
+    public Response<CreatorRevenueVO> revenue() {
+        return subscriptionService.revenue();
     }
 
     @GetMapping("/creators/{userId}")

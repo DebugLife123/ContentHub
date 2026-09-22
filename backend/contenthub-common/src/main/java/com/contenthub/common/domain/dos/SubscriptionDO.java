@@ -40,7 +40,10 @@ public class SubscriptionDO {
 
     private LocalDateTime endTime;
 
-    /** ACTIVE 生效中 / EXPIRED 已过期 / CANCELED 已取消 */
+    /** 提前终止 / 退款时间，仅 CANCELED 与 REFUNDED 时有值 */
+    private LocalDateTime closedTime;
+
+    /** ACTIVE 生效中 / EXPIRED 已过期 / CANCELED 已终止 / REFUNDED 已退款 */
     private String status;
 
     @TableField("create_time")
