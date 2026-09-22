@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
 import * as authApi from '@/api/auth'
 import { TOKEN_KEY } from '@/axios'
-import { useMembershipStore } from './membership'
 import type { Role, UserInfo } from '@/api/types'
 
 /**
@@ -68,8 +67,6 @@ export const useUserStore = defineStore(
       token.value = ''
       userInfo.value = null
       localStorage.removeItem(TOKEN_KEY)
-    // 会员状态是按当前账号查出来的，退出时必须一起清掉
-    useMembershipStore().reset()
     }
 
     /** 角色判断：管理员同时具备创作者能力（与后端 Security 规则一致） */

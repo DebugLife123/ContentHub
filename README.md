@@ -44,7 +44,7 @@ ContentHub/
 │   └── contenthub-web/          # Web 启动模块：Controller / Service + 配置
 ├── frontend/                    # Vue3 + TypeScript + Vite 前端
 │   └── src/
-│       ├── api/                 # 接口封装与共享类型（auth / content / category / creator / plan / subscription / types）
+│       ├── api/                 # 接口封装与共享类型（auth / content / category / creator / plan / subscription / skill / types）
 │       ├── stores/user.ts       # Pinia 登录态
 │       ├── router/index.ts      # 路由与守卫（requiresAuth / roles）
 │       └── views/
@@ -52,7 +52,7 @@ ContentHub/
 │           ├── Login.vue / Register.vue / Profile.vue           # 认证与个人中心（收藏 / 阅读历史 / 我的评论）
 │           ├── skill/           # Skill 商城：SkillList.vue（分类 + 星数排序）、SkillDetail.vue
 │           ├── creator/         # 工作台（统计 + 状态流转）、创作者资料、套餐管理、发布与编辑
-│           ├── admin/           # 内容审核、评论管理、用户管理、分类管理、套餐管理
+│           ├── admin/           # 内容审核、评论管理、用户管理、内容分类、套餐管理、Skill 商城管理（List + Edit）
 │           └── subscription/    # 订阅方案、我的订阅
 ├── docs/
 │   └── database.sql             # 数据库建表脚本 + 演示数据（同时作为 MySQL 容器初始化脚本）
@@ -222,25 +222,38 @@ ContentHub/
 阶段 0-7（计划 Day 1-60）已全部完成，`docker compose --profile full up -d --build` 可一键起全栈。
 仅剩计划中标注为「可选升级」的 Day 61-70（Spring AI / RAG / AI 内容助手）未开始。
 
-### Skill 商城（前端已完成，数据仍是 mock）
+### Skill 商城（前后端已完成，由管理员维护）
 
 顶栏「Skill 商城」入口，对应计划 Day 61-70 里「可复用能力交易」的方向。
+与内容库不同，Skill **没有创作者投稿与审核环节**——由管理员在独立面板里直接维护。
 
 | 路径 | 页面 | 说明 |
 |---|---|---|
-| `/skills` | 列表 | 7 个分类（全部 / 开发工具 / 写作与文档 / 数据处理 / 设计创意 / 自动化 / 安全合规），**默认按 GitHub 星数倒序**，另可按最近更新与名称排序；支持关键词搜索；分类同步到地址栏（`/skills?categoryId=dev`）可分享、可后退 |
+| `/skills` | 列表 | 6 个分类（开发工具 / 写作与文档 / 数据处理 / 设计创意 / 自动化 / 安全合规），**默认按 GitHub 星数倒序**，另可按最近更新与名称排序；支持关键词搜索；分类同步到地址栏（`/skills?categoryId=1`）可分享、可后退 |
 | `/skills/:id` | 详情 | 面包屑 + 头部（图标 / 名称 / 摘要 / 版本 / 星数 / 下载量 / 安装 / 官网）+「详情 / 评论」页签；正文含功能特点、为什么收录、快速上手、安装命令；右侧信息栏含基本信息、提交信息、安全评级、兼容平台、标签、团队协作 |
+| `/admin/skills` | 管理面板 | 「Skill 管理」与「分类管理」两个页签：关键词 / 状态 / 分类筛选、分页、上架 / 下架 / 删除，以及分类的增删改 |
+| `/admin/skills/new`、`/admin/skills/:id/edit` | 表单 | 26 个字段分四组（基本信息 / 上游信息 / 详情页内容 / 团队协作），快速上手步骤是可增删的行 |
 
-**会员解锁**沿用内容库那套口径：
+**上架状态**三态，与内容库「新建一律落草稿」的约定一致：
 
-- 每个 Skill 有 `accessType`：`FREE` 直接可看，`MEMBER` 需要会员
-- 会员身份 = 存在一条 `valid = true` 的订阅，由 `stores/membership.ts` 查 `/api/subscriptions/my` 得出
-- 未解锁时不渲染快速上手步骤与安装命令（数据层 `getSkill(id, isMember)` 直接置空），页面给锁定提示与「查看订阅方案」引导——和内容库「未解锁只给试读片段」是同一个做法
+```
+新建 → DRAFT（草稿，前台看不到）
+DRAFT / OFFLINE --publish--> PUBLISHED（前台立即可见）
+PUBLISHED       --offline--> OFFLINE（前台立刻消失）
+```
 
-> **数据是假的。** 列表与详情都读 `src/mock/skills.ts`（12 个 Skill，含评论），
-> 星数、大小、更新时间参考真实仓库量级但不是实时数据。
-> 唯一的读取入口是 `src/api/skill.ts`，后端有 Skill 表与接口后把函数体换成 `api.get(...)` 即可，视图层不用改。
-> 另外要注意：**前端的锁定判断只是体验层**，和内容库一样，真正的权限必须由服务端决定。
+状态流转只能走 `/admin/skills/{id}/publish` 与 `/offline`；新增与编辑接口刻意不接受 `status` 字段，
+否则「先草稿后上架」这个约束形同虚设。
+
+**会员解锁**与内容库同一套口径，但判定维度不同：
+
+- 每个 Skill 有 `access_type`：`FREE` 直接可看，`MEMBER` 需要会员
+- Skill 没有「作者」概念，所以判定的是「持有任意一条有效订阅」（`hasAnyActiveSubscription`），
+  而内容库判定的是「对该内容的创作者持有有效订阅」
+- 未解锁时**服务端不下发** `installCommand` 与 `quickStart`（`SkillServiceImpl.decideAccess`），
+  不是前端藏起来；页面只拿到 `locked = true` 与 `lockReason`
+
+**评论页签**目前是空状态。内容库的评论表绑在 `content_id` 上，Skill 要用得另建一套，需要时再补。
 
 ## 已实现接口
 
@@ -328,8 +341,27 @@ ContentHub/
 | GET | `/api/admin/users` | ADMIN | 用户列表（可按关键词与角色筛选） |
 | PUT | `/api/admin/users/{id}/status` | ADMIN | 启用 / 禁用账号（禁用后无法登录） |
 | GET | `/api/admin/plans` | ADMIN | 全平台套餐 |
+| GET | `/api/admin/skills` | ADMIN | Skill 列表（含草稿与已下架，可按状态筛选） |
+| GET | `/api/admin/skills/{id}` | ADMIN | Skill 详情（不限状态，管理端回显用） |
+| POST | `/api/admin/skills` | ADMIN | 新增 Skill（落库为草稿，返回新 id） |
+| PUT | `/api/admin/skills/{id}` | ADMIN | 编辑 Skill（不改动上架状态） |
+| DELETE | `/api/admin/skills/{id}` | ADMIN | 删除 Skill（逻辑删除） |
+| POST | `/api/admin/skills/{id}/publish` | ADMIN | 上架：`DRAFT` / `OFFLINE` → `PUBLISHED` |
+| POST | `/api/admin/skills/{id}/offline` | ADMIN | 下架：`PUBLISHED` → `OFFLINE` |
+| GET | `/api/admin/skill-categories` | ADMIN | 全部 Skill 分类（含禁用） |
+| POST | `/api/admin/skill-categories` | ADMIN | 新增分类（同名已删除分类会被复活） |
+| PUT | `/api/admin/skill-categories/{id}` | ADMIN | 修改分类 |
+| DELETE | `/api/admin/skill-categories/{id}` | ADMIN | 删除分类（分类下有 Skill 时拒绝） |
 | POST | `/api/admin/test` | ADMIN | 脚手架自带的 hello 接口 |
 | GET | `/api/admin/redis/verify` | ADMIN | 阶段 0 验收用：写一个带 TTL 的 key 再读回 |
+
+### Skill 商城
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| GET | `/api/skills` | 公开 | Skill 分页（仅已上架，默认按星数倒序） |
+| GET | `/api/skills/{id}` | 公开 | Skill 详情（仅已上架；无会员权限时不下发安装方式） |
+| GET | `/api/skill-categories` | 公开 | Skill 分类列表（仅启用中） |
 
 ### 订阅
 
@@ -680,7 +712,8 @@ docker compose --profile full down -v             # 连同数据卷一起删（�
 ## 下一步
 
 1. **可选升级（计划 Day 61-70）**：Spring AI / RAG / AI 内容助手。
-2. 计划的 60 天主体（阶段 0-7）已全部完成。
+2. 计划的 60 天主体（阶段 0-7）已全部完成，Skill 商城是在计划之外额外做的一块。
+3. Skill 商城的评论功能尚未开放（内容库的评论表绑在 `content_id` 上，Skill 要用得另建一套）。
 
 ## 文档
 

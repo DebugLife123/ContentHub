@@ -44,6 +44,13 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     MISSING_PARAM("20025", "缺少必要的请求参数"),
     DUPLICATE_KEY("20026", "数据已存在，请勿重复提交"),
     UNSUPPORTED_MEDIA_TYPE("20027", "不支持的请求内容类型"),
+    // ----------- Skill 商城（管理端维护，没有创作者投稿与审核环节） -----------
+    SKILL_NOT_FOUND("20028", "Skill 不存在或尚未上架"),
+    SKILL_NAME_EXISTS("20029", "同名 Skill 已存在，请勿重复添加"),
+    SKILL_CATEGORY_NOT_FOUND("20030", "Skill 分类不存在"),
+    SKILL_CATEGORY_NAME_EXISTS("20031", "该 Skill 分类名称已存在"),
+    SKILL_CATEGORY_IN_USE("20032", "该分类下还有 Skill，无法删除"),
+    SKILL_STATUS_ILLEGAL("20033", "当前状态不允许该操作"),
     SELECT_FAIL("20003","查询数据库时出错");
     // 异常码
     private String errorCode;

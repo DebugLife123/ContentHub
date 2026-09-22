@@ -7,13 +7,13 @@
       </div>
       <p class="heading-aside">
         共 {{ total }} 个 Skill<br />
-        <template v-if="isMember">会员已激活，全部内容可安装。</template>
-        <template v-else>标「会员」的 Skill 需订阅后解锁。</template>
+        标「会员」的 Skill 需订阅后解锁。
       </p>
     </div>
 
-    <!-- 分类选项 -->
+    <!-- 栏目：来自 /api/skill-categories -->
     <div class="category-row">
+      <span :class="{ active: filters.categoryId === null }" @click="selectCategory(null)">全部</span>
       <span
         v-for="category in categories"
         :key="category.id"
@@ -46,17 +46,17 @@
     <div v-else class="skill-grid">
       <article v-for="item in items" :key="item.id" class="skill-card" @click="open(item.id)">
         <div class="skill-head">
-          <span class="skill-icon">{{ item.icon }}</span>
+          <span class="skill-icon">{{ item.icon || '🧩' }}</span>
           <div class="skill-title">
             <strong>{{ item.name }}</strong>
-            <small>{{ item.repo }}</small>
+            <small>{{ item.repo || '—' }}</small>
           </div>
           <span class="access-badge" :class="item.accessType === 'FREE' ? 'is-free' : 'is-member'">
             {{ item.accessType === 'FREE' ? '免费' : '会员' }}
           </span>
         </div>
 
-        <p class="skill-summary">{{ item.summary }}</p>
+        <p class="skill-summary">{{ item.summary || '暂无简介' }}</p>
 
         <div class="skill-platforms">
           <span v-for="p in item.platforms.slice(0, 3)" :key="p">{{ p }}</span>
@@ -64,8 +64,8 @@
 
         <div class="skill-foot">
           <span class="stars">★ {{ formatStars(item.stars) }}</span>
-          <span>{{ item.version }}</span>
-          <span>{{ item.updatedAt }}</span>
+          <span>{{ item.version || '—' }}</span>
+          <span>{{ formatDate(item.updateTime) }}</span>
         </div>
       </article>
     </div>
@@ -73,28 +73,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { listSkillCategories, pageSkills, formatStars } from '../../api/skill'
-import { useMembershipStore } from '@/stores/membership'
-import { useUserStore } from '@/stores/user'
+import { formatDate, formatStars, listSkillCategories, pageSkills } from '../../api/skill'
 import type { SkillCategory, SkillItem } from '../../api/types'
 
 const route = useRoute()
 const router = useRouter()
-const userStore = useUserStore()
-const membership = useMembershipStore()
 
 const loading = ref(true)
 const items = ref<SkillItem[]>([])
 const total = ref(0)
 const categories = ref<SkillCategory[]>([])
 
-/** 未登录时会员状态一律按 false 处理，避免退出后残留上一个账号的状态 */
-const isMember = computed(() => userStore.isLoggedIn && membership.isMember)
-
 const filters = reactive({
-  categoryId: 'all',
+  categoryId: null as number | null,
   keyword: '',
   sort: 'stars' as 'stars' | 'updated' | 'name',
 })
@@ -107,8 +100,10 @@ async function load() {
       keyword: filters.keyword || undefined,
       sort: filters.sort,
     })
-    items.value = res.list
-    total.value = res.total
+    if (res.data.success) {
+      items.value = res.data.data.list
+      total.value = res.data.data.total
+    }
   } catch {
     items.value = []
     total.value = 0
@@ -121,29 +116,30 @@ function applyFilters() {
   load()
 }
 
-function selectCategory(id: string) {
+function selectCategory(id: number | null) {
   filters.categoryId = id
   // 同步到地址栏：分类可以被分享，浏览器后退也能回到上一个分类
-  router.replace({ path: '/skills', query: id === 'all' ? {} : { categoryId: id } })
+  router.replace({ path: '/skills', query: id === null ? {} : { categoryId: String(id) } })
   load()
 }
 
-function open(id: string) {
+function open(id: number) {
   router.push(`/skills/${id}`)
 }
 
 onMounted(async () => {
-  // 支持从外部带分类进来：/skills?categoryId=dev
+  // 支持从外部带分类进来：/skills?categoryId=1
   const fromQuery = route.query.categoryId
   if (typeof fromQuery === 'string' && fromQuery) {
-    filters.categoryId = fromQuery
+    const parsed = Number(fromQuery)
+    if (!Number.isNaN(parsed)) filters.categoryId = parsed
   }
   try {
-    categories.value = await listSkillCategories()
+    const res = await listSkillCategories()
+    if (res.data.success) categories.value = res.data.data
   } catch {
     categories.value = []
   }
-  await membership.ensureLoaded()
   await load()
 })
 </script>

@@ -91,6 +91,9 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/categories").permitAll()
                         .requestMatchers(HttpMethod.GET, "/plans").permitAll()
                         .requestMatchers(HttpMethod.GET, "/creators/**").permitAll()
+                        // Skill 商城：读公开，写操作走下面的 /admin/** 规则
+                        .requestMatchers(HttpMethod.GET, "/skills", "/skills/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/skill-categories").permitAll()
 
                         // ---------- 分类写操作仅管理员 ----------
                         .requestMatchers(HttpMethod.POST, "/categories").hasRole("ADMIN")

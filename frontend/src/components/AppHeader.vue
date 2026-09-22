@@ -21,8 +21,9 @@
               <el-dropdown-item command="/admin/contents">内容审核</el-dropdown-item>
               <el-dropdown-item command="/admin/comments">评论管理</el-dropdown-item>
               <el-dropdown-item command="/admin/users">用户管理</el-dropdown-item>
-              <el-dropdown-item command="/admin/categories">分类管理</el-dropdown-item>
+              <el-dropdown-item command="/admin/categories">内容分类</el-dropdown-item>
               <el-dropdown-item command="/admin/plans">套餐管理</el-dropdown-item>
+              <el-dropdown-item command="/admin/skills">Skill 商城</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>

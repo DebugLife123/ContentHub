@@ -19,6 +19,8 @@ import ContentReview from '../views/admin/ContentReview.vue'
 import AdminUsers from '../views/admin/Users.vue'
 import AdminComments from '../views/admin/Comments.vue'
 import AdminPlans from '../views/admin/Plans.vue'
+import SkillManage from '../views/admin/SkillManage.vue'
+import SkillEdit from '../views/admin/SkillEdit.vue'
 import SkillList from '../views/skill/SkillList.vue'
 import SkillDetail from '../views/skill/SkillDetail.vue'
 
@@ -106,6 +108,23 @@ const routes: RouteRecordRaw[] = [
     path: '/admin/plans',
     component: AdminPlans,
     meta: { title: '套餐管理', requiresAuth: true, roles: ['ADMIN'] },
+  },
+
+  // ---------- 管理员：Skill 商城独立面板 ----------
+  {
+    path: '/admin/skills',
+    component: SkillManage,
+    meta: { title: 'Skill 商城管理', requiresAuth: true, roles: ['ADMIN'] },
+  },
+  {
+    path: '/admin/skills/new',
+    component: SkillEdit,
+    meta: { title: '新增 Skill', requiresAuth: true, roles: ['ADMIN'] },
+  },
+  {
+    path: '/admin/skills/:id/edit',
+    component: SkillEdit,
+    meta: { title: '编辑 Skill', requiresAuth: true, roles: ['ADMIN'] },
   },
 
   { path: '/:pathMatch(.*)*', redirect: '/' },

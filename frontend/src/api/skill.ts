@@ -1,100 +1,100 @@
-import { SKILLS, SKILL_CATEGORIES } from '@/mock/skills'
-import type { SkillCategory, SkillDetail, SkillItem, SkillQuery } from './types'
+import api from '../axios'
+import type {
+  ApiResponse,
+  PageResult,
+  SkillCategory,
+  SkillCategoryPayload,
+  SkillDetail,
+  SkillItem,
+  SkillPayload,
+  SkillQuery,
+} from './types'
 
 /**
- * Skill 商城的数据访问层。
+ * Skill 商城接口。
  *
- * <p>目前读的是 `src/mock/skills.ts`。后端有了 Skill 表与接口之后，
- * 只需要把下面几个函数体换成 `api.get(...)`，视图层一行都不用改——
- * 这也是把这些函数写成 async 的原因。</p>
+ * <p>会员解锁判定在后端（`SkillServiceImpl.decideAccess`）：未解锁时详情接口
+ * 不下发安装命令与快速上手步骤，前端只负责渲染 `locked`。所以这里没有
+ * 「前端算会员状态」这回事——和内容库是同一套做法。</p>
  */
 
-/** 与内容库的 `ContentAccessService.decide()` 保持同一种口径：锁住时只说原因，不给内容 */
-const LOCK_REASON = '这个 Skill 需要会员解锁，解锁后可查看完整的功能说明、快速上手步骤与安装命令。'
+// ---------------------------------------------------------------- 公开读
 
-/** 详情裁成列表项，避免把正文带进列表响应 */
-function toItem(skill: SkillDetail): SkillItem {
-  return {
-    id: skill.id,
-    name: skill.name,
-    icon: skill.icon,
-    categoryId: skill.categoryId,
-    summary: skill.summary,
-    author: skill.author,
-    repo: skill.repo,
-    stars: skill.stars,
-    version: skill.version,
-    accessType: skill.accessType,
-    platforms: skill.platforms,
-    tags: skill.tags,
-    updatedAt: skill.updatedAt,
-  }
+/** Skill 分页（仅已上架，默认按星数倒序） */
+export function pageSkills(query: SkillQuery = {}) {
+  return api.get<ApiResponse<PageResult<SkillItem>>>('/skills', { params: query })
 }
 
-export async function listSkillCategories(): Promise<SkillCategory[]> {
-  return SKILL_CATEGORIES
+export function getSkill(id: number | string) {
+  return api.get<ApiResponse<SkillDetail>>(`/skills/${id}`)
 }
 
-/**
- * 按分类 / 关键词筛选，并按指定字段排序。
- *
- * <p>默认按 GitHub 星数倒序——商城的核心排序依据。</p>
- */
-export async function pageSkills(
-  query: SkillQuery = {}
-): Promise<{ list: SkillItem[]; total: number }> {
-  const { categoryId, keyword, sort = 'stars' } = query
-  let list = SKILLS.slice()
-
-  if (categoryId && categoryId !== 'all') {
-    list = list.filter((s) => s.categoryId === categoryId)
-  }
-
-  const k = (keyword || '').trim().toLowerCase()
-  if (k) {
-    list = list.filter((s) =>
-      [s.name, s.summary, s.author, s.repo, ...s.tags].join(' ').toLowerCase().includes(k)
-    )
-  }
-
-  list.sort((a, b) => {
-    if (sort === 'name') return a.name.localeCompare(b.name)
-    if (sort === 'updated') return b.updatedAt.localeCompare(a.updatedAt)
-    // 星数相同时用名称兜底，保证顺序稳定
-    return b.stars - a.stars || a.name.localeCompare(b.name)
-  })
-
-  return { list: list.map(toItem), total: list.length }
+/** Skill 分类（仅启用中） */
+export function listSkillCategories() {
+  return api.get<ApiResponse<SkillCategory[]>>('/skill-categories')
 }
 
-/**
- * 取 Skill 详情。
- *
- * <p>`isMember` 由调用方（会员 store）提供。付费 Skill 对非会员只下发
- * 功能特点与收录说明这类介绍性内容，安装命令与快速上手步骤不下发——
- * 和内容库「未解锁只给试读片段」是同一套做法。</p>
- */
-export async function getSkill(id: string, isMember: boolean): Promise<SkillDetail> {
-  const skill = SKILLS.find((s) => s.id === id)
-  if (!skill) {
-    throw new Error('这个 Skill 不存在或已下架')
-  }
+// ---------------------------------------------------------------- 管理端
 
-  const locked = skill.accessType === 'MEMBER' && !isMember
-  const detail: SkillDetail = { ...skill, locked, lockReason: locked ? LOCK_REASON : null }
-
-  if (locked) {
-    detail.installCommand = ''
-    detail.quickStart = []
-  }
-
-  return detail
+export function pageSkillsForAdmin(query: SkillQuery = {}) {
+  return api.get<ApiResponse<PageResult<SkillItem>>>('/admin/skills', { params: query })
 }
 
-/** 星数展示：过万折成 12.4k */
+export function getSkillForAdmin(id: number | string) {
+  return api.get<ApiResponse<SkillDetail>>(`/admin/skills/${id}`)
+}
+
+/** 新增；返回新建（或复活）的 id，落库为草稿 */
+export function createSkill(payload: SkillPayload) {
+  return api.post<ApiResponse<number>>('/admin/skills', payload)
+}
+
+export function updateSkill(id: number, payload: SkillPayload) {
+  return api.put<ApiResponse<void>>(`/admin/skills/${id}`, payload)
+}
+
+export function deleteSkill(id: number) {
+  return api.delete<ApiResponse<void>>(`/admin/skills/${id}`)
+}
+
+/** 上架：草稿 / 已下架 -> 已上架 */
+export function publishSkill(id: number) {
+  return api.post<ApiResponse<void>>(`/admin/skills/${id}/publish`)
+}
+
+/** 下架：已上架 -> 已下架 */
+export function offlineSkill(id: number) {
+  return api.post<ApiResponse<void>>(`/admin/skills/${id}/offline`)
+}
+
+// ---------------------------------------------------------------- 管理端分类
+
+export function listAllSkillCategories() {
+  return api.get<ApiResponse<SkillCategory[]>>('/admin/skill-categories')
+}
+
+export function createSkillCategory(payload: SkillCategoryPayload) {
+  return api.post<ApiResponse<SkillCategory>>('/admin/skill-categories', payload)
+}
+
+export function updateSkillCategory(id: number, payload: SkillCategoryPayload) {
+  return api.put<ApiResponse<SkillCategory>>(`/admin/skill-categories/${id}`, payload)
+}
+
+export function deleteSkillCategory(id: number) {
+  return api.delete<ApiResponse<void>>(`/admin/skill-categories/${id}`)
+}
+
+/** 星数展示：过万折成 78.2k */
 export function formatStars(stars: number): string {
   if (stars >= 1000) {
     return `${(stars / 1000).toFixed(1)}k`
   }
-  return String(stars)
+  return String(stars ?? 0)
+}
+
+/** 后端返回 yyyy-MM-dd HH:mm:ss，列表与侧栏只展示日期 */
+export function formatDate(value?: string | null): string {
+  if (!value) return '—'
+  return value.slice(0, 10)
 }

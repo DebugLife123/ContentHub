@@ -197,82 +197,131 @@ export interface AdminUser {
   createTime?: string
 }
 
-// ------------------------------------------------------------------ Skill 商城（当前为 mock 数据）
+// ------------------------------------------------------------------ Skill 商城
 
-/** Skill 分类 */
+/** DRAFT 草稿 / PUBLISHED 已上架 / OFFLINE 已下架 */
+export type SkillStatus = 'DRAFT' | 'PUBLISHED' | 'OFFLINE'
+
+/** FREE 免费 / MEMBER 会员解锁 */
+export type SkillAccess = 'FREE' | 'MEMBER'
+
+/** Skill 分类（Skill 商城的栏目，与内容库分类相互独立） */
 export interface SkillCategory {
-  id: string
+  id: number
   name: string
+  sort: number
+  status: 'ENABLED' | 'DISABLED'
+  /** 该分类下的 Skill 数（含未上架） */
+  skillCount?: number
+  createTime?: string
+}
+
+export interface SkillCategoryPayload {
+  name: string
+  sort?: number
+  status?: 'ENABLED' | 'DISABLED'
 }
 
 /** 快速上手步骤 */
 export interface SkillStep {
   title: string
-  detail?: string
+  detail?: string | null
 }
 
 /** 团队协作信息 */
 export interface SkillTeam {
-  maintainers: number
-  contributors: number
-  openIssues: number
-  lastCommit: string
-}
-
-/** Skill 评论 */
-export interface SkillComment {
-  id: number
-  user: string
-  time: string
-  body: string
+  maintainers?: number | null
+  contributors?: number | null
+  openIssues?: number | null
+  lastCommit?: string | null
 }
 
 /** Skill 列表项 */
 export interface SkillItem {
-  id: string
+  id: number
   name: string
-  icon: string
-  categoryId: string
-  summary: string
-  author: string
-  repo: string
+  icon?: string | null
+  categoryId?: number | null
+  categoryName?: string | null
+  summary?: string | null
+  author?: string | null
+  /** owner/name */
+  repo?: string | null
   stars: number
-  version: string
-  /** FREE 免费 / MEMBER 会员解锁 */
-  accessType: 'FREE' | 'MEMBER'
+  version?: string | null
+  accessType: SkillAccess
+  status: SkillStatus
   platforms: string[]
   tags: string[]
-  updatedAt: string
+  updateTime?: string | null
 }
 
-/** Skill 详情（比列表项多出详情页需要的字段） */
+/**
+ * Skill 详情。
+ *
+ * 注意 `locked = true` 时后端不会下发安装命令与快速上手步骤，
+ * `installCommand` 会是空串、`quickStart` 是空数组——这是服务端行为，不是前端藏的。
+ */
 export interface SkillDetail extends SkillItem {
-  license: string
-  size: string
+  officialUrl?: string | null
+  installCommand?: string | null
+  license?: string | null
+  size?: string | null
   downloads: number
-  /** 1-5 级，5 最好 */
+  /** 0-5 级，5 最好 */
   securityLevel: number
-  securityLabel: string
-  submitter: string
-  submitTime: string
-  officialUrl: string
-  installCommand: string
+  securityLabel?: string | null
+  submitter?: string | null
+  submitTime?: string | null
   /** 功能特点 */
   features: string[]
   /** 为什么收录 */
-  whyIncluded: string
+  whyIncluded?: string | null
   quickStart: SkillStep[]
   team: SkillTeam
-  comments: SkillComment[]
-  /** 是否因会员权限被锁；由调用方按当前会员状态计算 */
-  locked?: boolean
+  locked: boolean
   lockReason?: string | null
 }
 
 export interface SkillQuery {
-  categoryId?: string
+  pageNum?: number
+  pageSize?: number
+  categoryId?: number | null
   keyword?: string
   sort?: 'stars' | 'updated' | 'name'
+  /** 仅管理端使用 */
+  status?: SkillStatus | ''
+}
+
+/** 新增 / 编辑 Skill 的请求体；刻意没有 status，上架下架走独立接口 */
+export interface SkillPayload {
+  name: string
+  icon?: string | null
+  categoryId?: number | null
+  summary?: string | null
+  whyIncluded?: string | null
+  author?: string | null
+  repo?: string | null
+  officialUrl?: string | null
+  installCommand?: string | null
+  stars?: number
+  version?: string | null
+  license?: string | null
+  size?: string | null
+  downloads?: number
+  securityLevel?: number
+  securityLabel?: string | null
+  submitter?: string | null
+  submitTime?: string | null
+  platforms: string[]
+  tags: string[]
+  features: string[]
+  quickStart: SkillStep[]
+  teamMaintainers?: number
+  teamContributors?: number
+  teamOpenIssues?: number
+  teamLastCommit?: string | null
+  accessType: SkillAccess
 }
 
 /** 创作者仪表盘统计（阶段 6 Day 48） */

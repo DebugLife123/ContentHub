@@ -13,14 +13,14 @@
     <template v-else>
       <!-- 头部 -->
       <header class="skill-hero">
-        <span class="hero-icon">{{ skill.icon }}</span>
+        <span class="hero-icon">{{ skill.icon || '🧩' }}</span>
         <div class="hero-main">
           <h1>{{ skill.name }}</h1>
-          <p class="hero-summary">{{ skill.summary }}</p>
+          <p class="hero-summary">{{ skill.summary || '暂无简介' }}</p>
           <div class="hero-meta">
-            <span class="chip">{{ skill.version }}</span>
+            <span class="chip">{{ skill.version || '—' }}</span>
             <span class="chip">★ {{ formatStars(skill.stars) }}</span>
-            <span class="chip">↓ {{ skill.downloads.toLocaleString() }}</span>
+            <span class="chip">↓ {{ (skill.downloads || 0).toLocaleString() }}</span>
             <span class="chip" :class="skill.accessType === 'FREE' ? 'is-free' : 'is-member'">
               {{ skill.accessType === 'FREE' ? '免费' : '会员解锁' }}
             </span>
@@ -34,16 +34,14 @@
           >
             ↓ {{ skill.locked ? '会员解锁后可安装' : '安装' }}
           </el-button>
-          <a class="ghost-button" :href="skill.officialUrl" target="_blank" rel="noopener">官网</a>
+          <a v-if="skill.officialUrl" class="ghost-button" :href="skill.officialUrl" target="_blank" rel="noopener">官网</a>
         </div>
       </header>
 
       <!-- 详情 / 评论 -->
       <div class="tabs">
         <span :class="{ active: tab === 'detail' }" @click="tab = 'detail'">详情</span>
-        <span :class="{ active: tab === 'comments' }" @click="tab = 'comments'">
-          评论 <small>{{ skill.comments.length }}</small>
-        </span>
+        <span :class="{ active: tab === 'comments' }" @click="tab = 'comments'">评论</span>
       </div>
 
       <div v-if="tab === 'detail'" class="detail-layout">
@@ -104,19 +102,19 @@
           <div class="side-card">
             <h3>基本信息</h3>
             <dl>
-              <div><dt>作者</dt><dd>{{ skill.author }}</dd></div>
-              <div><dt>许可证</dt><dd>{{ skill.license }}</dd></div>
-              <div><dt>版本</dt><dd>{{ skill.version }}</dd></div>
-              <div><dt>大小</dt><dd>{{ skill.size }}</dd></div>
-              <div><dt>更新时间</dt><dd>{{ skill.updatedAt }}</dd></div>
+              <div><dt>作者</dt><dd>{{ skill.author || '—' }}</dd></div>
+              <div><dt>许可证</dt><dd>{{ skill.license || '—' }}</dd></div>
+              <div><dt>版本</dt><dd>{{ skill.version || '—' }}</dd></div>
+              <div><dt>大小</dt><dd>{{ skill.size || '—' }}</dd></div>
+              <div><dt>更新时间</dt><dd>{{ formatDate(skill.updateTime) }}</dd></div>
             </dl>
           </div>
 
           <div class="side-card">
             <h3>提交信息</h3>
             <dl>
-              <div><dt>提交人</dt><dd>{{ skill.submitter }}</dd></div>
-              <div><dt>提交时间</dt><dd>{{ skill.submitTime }}</dd></div>
+              <div><dt>提交人</dt><dd>{{ skill.submitter || '—' }}</dd></div>
+              <div><dt>提交时间</dt><dd>{{ skill.submitTime || '—' }}</dd></div>
             </dl>
           </div>
 
@@ -125,7 +123,7 @@
             <div class="security-badge">
               <span class="shield">🛡</span>
               <div>
-                <strong>{{ skill.securityLabel }}</strong>
+                <strong>{{ skill.securityLabel || '暂无评级' }}</strong>
                 <small>{{ securityDots }}</small>
               </div>
             </div>
@@ -148,32 +146,21 @@
           <div class="side-card">
             <h3>团队协作</h3>
             <dl>
-              <div><dt>维护者</dt><dd>{{ skill.team.maintainers }}</dd></div>
-              <div><dt>贡献者</dt><dd>{{ skill.team.contributors }}</dd></div>
-              <div><dt>未解决 Issue</dt><dd>{{ skill.team.openIssues }}</dd></div>
-              <div><dt>最近提交</dt><dd>{{ skill.team.lastCommit }}</dd></div>
+              <div><dt>维护者</dt><dd>{{ skill.team.maintainers ?? 0 }}</dd></div>
+              <div><dt>贡献者</dt><dd>{{ skill.team.contributors ?? 0 }}</dd></div>
+              <div><dt>未解决 Issue</dt><dd>{{ skill.team.openIssues ?? 0 }}</dd></div>
+              <div><dt>最近提交</dt><dd>{{ skill.team.lastCommit || '—' }}</dd></div>
             </dl>
           </div>
         </aside>
       </div>
 
-      <!-- 评论 -->
+      <!-- 评论：Skill 还没有评论后端，先只放空状态，不放假数据 -->
       <div v-else class="comments-pane">
-        <div v-if="!skill.comments.length" class="empty-state">还没有评论。</div>
-        <ul v-else class="comment-list">
-          <li v-for="c in skill.comments" :key="c.id">
-            <span class="comment-avatar">{{ c.user.slice(0, 1) }}</span>
-            <div class="comment-body">
-              <div class="comment-head">
-                <strong>{{ c.user }}</strong>
-                <span>{{ c.time }}</span>
-              </div>
-              <p>{{ c.body }}</p>
-            </div>
-          </li>
-        </ul>
+        <div class="empty-state">还没有评论。</div>
         <p class="aside-note">
-          评论目前是 mock 数据，等 Skill 有了后端接口再接入真实的发表与删除。
+          Skill 的评论功能尚未开放。内容库的评论走的是绑在内容上的评论表，
+          Skill 要用得另建一套，需要时再补。
         </p>
       </div>
     </template>
@@ -184,33 +171,32 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { formatStars, getSkill } from '../../api/skill'
-import { useMembershipStore } from '@/stores/membership'
-import { useUserStore } from '@/stores/user'
+import { formatDate, formatStars, getSkill } from '../../api/skill'
 import type { SkillDetail } from '../../api/types'
 
 const route = useRoute()
-const userStore = useUserStore()
-const membership = useMembershipStore()
 
 const loading = ref(true)
 const error = ref('')
 const tab = ref<'detail' | 'comments'>('detail')
 
+/** 空内容占位：模板中可直接访问字段，无需到处判空 */
 const EMPTY_SKILL: SkillDetail = {
-  id: '',
+  id: 0,
   name: '',
   icon: '🧩',
-  categoryId: '',
+  categoryId: null,
+  categoryName: '',
   summary: '',
   author: '',
   repo: '',
   stars: 0,
   version: '',
   accessType: 'FREE',
+  status: 'PUBLISHED',
   platforms: [],
   tags: [],
-  updatedAt: '',
+  updateTime: '',
   license: '',
   size: '',
   downloads: 0,
@@ -224,7 +210,8 @@ const EMPTY_SKILL: SkillDetail = {
   whyIncluded: '',
   quickStart: [],
   team: { maintainers: 0, contributors: 0, openIssues: 0, lastCommit: '' },
-  comments: [],
+  locked: false,
+  lockReason: null,
 }
 
 const skill = ref<SkillDetail>(EMPTY_SKILL)
@@ -239,10 +226,12 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    // 强制刷新一次会员状态：用户可能刚从订阅页回来
-    await membership.ensureLoaded(true)
-    const isMember = userStore.isLoggedIn && membership.isMember
-    skill.value = await getSkill(String(route.params.id), isMember)
+    // locked 由服务端按当前登录态判定，前端不再自己算会员状态
+    const res = await getSkill(String(route.params.id))
+    if (!res.data.success) {
+      throw new Error(res.data.message || 'Skill 不存在或尚未上架')
+    }
+    skill.value = res.data.data
   } catch (e) {
     error.value = e instanceof Error ? e.message : 'Skill 加载失败，请稍后重试。'
   } finally {
@@ -255,7 +244,7 @@ async function handleInstall() {
     return
   }
   try {
-    await navigator.clipboard.writeText(skill.value.installCommand)
+    await navigator.clipboard.writeText(skill.value.installCommand || '')
     ElMessage.success('安装命令已复制到剪贴板')
   } catch {
     // 非 HTTPS 或浏览器不给剪贴板权限时，退化成提示，不假装成功
@@ -265,7 +254,7 @@ async function handleInstall() {
 
 async function copyCommand() {
   try {
-    await navigator.clipboard.writeText(skill.value.installCommand)
+    await navigator.clipboard.writeText(skill.value.installCommand || '')
     ElMessage.success('已复制')
   } catch {
     ElMessage.warning('浏览器未授予剪贴板权限，请手动选中复制')
