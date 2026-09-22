@@ -675,6 +675,51 @@ sudo ufw allow 8085/tcp
 `cp .env.example .env` 后填值即可，`.env` 已在 `.gitignore` 里。
 `docker-compose.override.yml` 也是 **不提交** 的：它放生产专属配置，靠 Compose 的 override 机制合并，仓库里的 `docker-compose.yml` 保持"本地学习用"的默认值。
 
+### 更新已部署的代码
+
+服务器上这份不是 `git clone`（服务器连不上 GitHub），代码是**打包传上去再解包**的。这里有个容易踩的坑：
+
+> **`tar -xzf` 只做覆盖，不会删除已经被删掉的文件。**
+> 
+> 换句话说，如果某次提交删了 `TestController.java`，光解包的话服务器上那份**还在**，
+> 会被一并编译进镜像——你以为删了，其实线上还挂着。
+> 这个坑在删 `TestController` / `application-prod.yml` 时真实踩到过一次。
+
+所以更新要用 `rsync --delete`，让服务器上的目录成为仓库的精确副本：
+
+```bash
+# 1. 本机打包（用 git archive，只含已提交文件，
+#    天然排除 .env / target / node_modules / dist）
+cd /path/to/ContentHub
+git archive --format=tar.gz -o contenthub.tar.gz HEAD
+
+# 2. 上传到服务器（SFTP / scp 走 SSH 端口）
+#    3. 服务器上：解到临时目录，再用 rsync 同步（--delete 是关键）
+rm -rf /tmp/contenthub-new && mkdir -p /tmp/contenthub-new
+tar -xzf /tmp/contenthub.tar.gz -C /tmp/contenthub-new
+
+cd /opt/contenthub
+rsync -a --delete \
+  --exclude='.env' \
+  --exclude='docker-compose.override.yml' \
+  --exclude='DEPLOY-NOTES.md' \
+  /tmp/contenthub-new/ /opt/contenthub/
+
+# 4. 重建并启动（用 nohup，避免 SSH 断开中断构建）
+nohup bash /root/deploy-contenthub.sh >/dev/null 2>&1 &
+tail -f /var/log/contenthub-deploy.log
+```
+
+三个 `--exclude` 是**必须**的：`.env`（生产密钥）、`docker-compose.override.yml`（生产覆盖配置）、
+`DEPLOY-NOTES.md`（服务器专属说明）都不在仓库里，不加会被 `--delete` 删掉。
+
+同步完可以用 dry-run 先确认要删什么：
+
+```bash
+rsync -avn --delete --exclude='.env' --exclude='docker-compose.override.yml' \
+  --exclude='DEPLOY-NOTES.md' /tmp/contenthub-new/ /opt/contenthub/ | grep '^deleting '
+```
+
 ### 日志与排障
 
 ```bash
