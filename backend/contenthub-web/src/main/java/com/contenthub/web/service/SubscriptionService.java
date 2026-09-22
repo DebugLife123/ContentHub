@@ -13,7 +13,12 @@ public interface SubscriptionService {
      * <p>没有接真实支付渠道，这里直接生成订阅记录；
      * 以后换成真实支付时，把「支付成功回调」换成调用本方法即可。</p>
      */
-    Response<SubscriptionVO> payMock(Long planId);
+    Response<SubscriptionVO> payMock(Long planId, String idempotencyKey);
+
+    /** Compatibility helper for non-HTTP callers; HTTP requests must provide a key. */
+    default Response<SubscriptionVO> payMock(Long planId) {
+        return payMock(planId, java.util.UUID.randomUUID().toString());
+    }
 
     /** 我的订阅（计划 Day 37） */
     Response<PageResponse<SubscriptionVO>> mySubscriptions(long pageNum, long pageSize);

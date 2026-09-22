@@ -12,6 +12,8 @@ import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -150,6 +152,20 @@ public class GlobalExceptionHandler {
         log.warn("缺少参数 {} -> {}", request.getRequestURI(), e.getParameterName());
         return badRequest(ResponseCodeEnum.MISSING_PARAM,
                 String.format("缺少参数 %s", e.getParameterName()));
+    }
+
+    /**
+     * 缺少必填的请求头，例如模拟支付接口要求的 {@code Idempotency-Key}。
+     *
+     * <p>不加这个处理器的话 {@code MissingRequestHeaderException} 会落到
+     * 「未预期异常」返回 500 —— 把客户端的用法错误表现成服务端故障。</p>
+     */
+    @ExceptionHandler({MissingRequestHeaderException.class, ServletRequestBindingException.class})
+    @ResponseBody
+    public ResponseEntity<Response<Object>> handleMissingHeader(HttpServletRequest request,
+                                                                ServletRequestBindingException e) {
+        log.warn("请求绑定失败 {} -> {}", request.getRequestURI(), e.getMessage());
+        return badRequest(ResponseCodeEnum.MISSING_PARAM, "缺少必要的请求头或参数");
     }
 
     /**

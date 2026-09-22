@@ -139,7 +139,37 @@ CREATE TABLE `subscriptions` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户订阅记录表';
 
 -- ----------------------------
--- 7. 收藏表
+-- 7. 订阅支付流水表（模拟支付的不可变账本）
+-- ----------------------------
+-- 为什么单独记一本账，而不是直接从 subscriptions 推算收益？
+--   1. 套餐价格可改。若按「当前价格 × 订阅数」统计，创作者一改价，历史收益会跟着被改写；
+--      这里存下单当时的金额/套餐名快照，历史不会再变。
+--   2. 续期复用同一条 subscriptions 记录，只看订阅表会把二次购买漏掉。
+-- idempotency_key：模拟支付接口必填。同一个 key 重复提交只生效一次，
+-- 避免「请求超时但服务端已提交，用户再点一次」被当成两次购买而重复续期。
+-- estimated = 1 表示这条是历史数据回填（金额取自当时的套餐现价，不是真实成交价）。
+DROP TABLE IF EXISTS `subscription_payments`;
+CREATE TABLE `subscription_payments` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '流水ID',
+  `user_id` BIGINT NOT NULL COMMENT '付款用户ID',
+  `subscription_id` BIGINT NOT NULL COMMENT '订阅ID -> subscriptions.id',
+  `plan_id` BIGINT NOT NULL COMMENT '套餐ID -> subscription_plans.id',
+  `creator_id` BIGINT NOT NULL COMMENT '创作者ID，收益统计按它筛选',
+  `idempotency_key` VARCHAR(128) NOT NULL COMMENT '幂等键，同一用户下唯一',
+  `amount_snapshot` DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '成交金额快照',
+  `plan_name_snapshot` VARCHAR(100) DEFAULT NULL COMMENT '成交时套餐名快照',
+  `duration_days_snapshot` INT DEFAULT NULL COMMENT '成交时套餐天数快照',
+  `paid_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '支付时间',
+  `estimated` TINYINT NOT NULL DEFAULT 0 COMMENT '1=历史回填的估算值',
+  `is_deleted` TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_sp_user_key` (`user_id`,`idempotency_key`),
+  KEY `idx_sp_creator` (`creator_id`),
+  KEY `idx_sp_subscription` (`subscription_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订阅支付流水表（模拟支付账本）';
+
+-- ----------------------------
+-- 8. 收藏表
 -- ----------------------------
 DROP TABLE IF EXISTS `favorites`;
 CREATE TABLE `favorites` (
@@ -153,7 +183,7 @@ CREATE TABLE `favorites` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='收藏表';
 
 -- ----------------------------
--- 8. 评论表
+-- 9. 评论表
 -- ----------------------------
 DROP TABLE IF EXISTS `comments`;
 CREATE TABLE `comments` (
@@ -171,7 +201,7 @@ CREATE TABLE `comments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评论表';
 
 -- ----------------------------
--- 9. 阅读记录表（计划表 6 列为「建议」，阶段 5 Day 46 使用）
+-- 10. 阅读记录表（计划表 6 列为「建议」，阶段 5 Day 46 使用）
 -- ----------------------------
 DROP TABLE IF EXISTS `reading_history`;
 CREATE TABLE `reading_history` (
@@ -190,7 +220,7 @@ CREATE TABLE `reading_history` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='阅读记录表';
 
 -- ----------------------------
--- 10. Skill 分类表（Skill 商城的栏目，与内容库的 content_category 相互独立）
+-- 11. Skill 分类表（Skill 商城的栏目，与内容库的 content_category 相互独立）
 -- ----------------------------
 DROP TABLE IF EXISTS `skill_category`;
 CREATE TABLE `skill_category` (
@@ -206,7 +236,7 @@ CREATE TABLE `skill_category` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Skill 分类表';
 
 -- ----------------------------
--- 11. Skill 表（由管理员在管理端维护，没有创作者投稿与审核环节）
+-- 12. Skill 表（由管理员在管理端维护，没有创作者投稿与审核环节）
 -- ----------------------------
 DROP TABLE IF EXISTS `skill`;
 CREATE TABLE `skill` (
@@ -250,7 +280,7 @@ CREATE TABLE `skill` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Skill 表';
 
 -- ----------------------------
--- 12. 创作者申请表（申请 -> 管理员审核 -> 通过才升级角色）
+-- 13. 创作者申请表（申请 -> 管理员审核 -> 通过才升级角色）
 -- ----------------------------
 DROP TABLE IF EXISTS `creator_application`;
 CREATE TABLE `creator_application` (
@@ -270,7 +300,7 @@ CREATE TABLE `creator_application` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='创作者申请表';
 
 -- ----------------------------
--- 13. Skill 评论表（内容库的 comments 绑在 content_id 上，Skill 单开一张）
+-- 14. Skill 评论表（内容库的 comments 绑在 content_id 上，Skill 单开一张）
 -- ----------------------------
 DROP TABLE IF EXISTS `skill_comment`;
 CREATE TABLE `skill_comment` (
@@ -288,7 +318,7 @@ CREATE TABLE `skill_comment` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Skill 评论表';
 
 -- ----------------------------
--- 14. 站内通知表（审核结果、申请结果等主动告诉用户）
+-- 15. 站内通知表（审核结果、申请结果等主动告诉用户）
 -- ----------------------------
 DROP TABLE IF EXISTS `notification`;
 CREATE TABLE `notification` (

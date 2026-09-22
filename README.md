@@ -336,6 +336,7 @@ PUBLISHED       --offline--> OFFLINE（前台立刻消失）
 | 方法 | 路径 | 权限 | 说明 |
 |---|---|---|---|
 | GET | `/api/admin/contents` | ADMIN | 内容列表（默认 `PENDING`，可按状态筛选） |
+| GET | `/api/admin/contents/{id}` | ADMIN | 审核详情（不限状态，返回完整正文）|
 | POST | `/api/admin/contents/{id}/approve` | ADMIN | 审核通过：`PENDING` → `PUBLISHED` |
 | POST | `/api/admin/contents/{id}/reject` | ADMIN | 审核驳回：`PENDING` → `REJECTED`，需填原因 |
 | GET | `/api/admin/comments` | ADMIN | 评论列表（可按状态筛选，含已隐藏） |
@@ -404,8 +405,23 @@ PUBLISHED       --offline--> OFFLINE（前台立刻消失）
 | POST | `/api/plans` | CREATOR / ADMIN | 新增套餐 |
 | PUT | `/api/plans/{id}` | 所属创作者 / ADMIN | 修改套餐 |
 | DELETE | `/api/plans/{id}` | 所属创作者 / ADMIN | 删除套餐（已有订阅记录时拒绝） |
-| POST | `/api/subscriptions/{planId}/pay/mock` | 登录 | 模拟支付，创建或续期订阅 |
+| POST | `/api/subscriptions/{planId}/pay/mock` | 登录 | 模拟支付，创建或续期订阅。**必须带 `Idempotency-Key` 请求头**（1-128 字符）|
 | GET | `/api/subscriptions/my` | 登录 | 我的订阅 |
+| POST | `/api/subscriptions/{id}/cancel` | 本人 | 提前终止（立即失去访问权限）|
+| POST | `/api/subscriptions/{id}/refund` | 本人 | 模拟退款（置 `REFUNDED`）|
+| GET | `/api/creator/revenue` | CREATOR / ADMIN | 创作者收益（按支付流水汇总）|
+
+> **模拟支付为什么要 `Idempotency-Key`**
+>
+> 模拟支付是「调用即成功」，所以「请求超时但服务端其实已提交，用户又点了一次」会被当成两次购买。
+> 现在每次支付必须带一个幂等键：同一个 key 重复提交**只生效一次**，直接返回第一次的结果；
+> 同一用户下 `(user_id, idempotency_key)` 唯一。重试要复用同一个 key，购买成功后才换新的。
+>
+> 另外每次支付都会往 `subscription_payments` 写一条**不可变流水**（存下单当时的金额/套餐名快照）。
+> 收益统计读流水而不是「当前套餐价 × 订阅数」——否则创作者一改价，历史收益会跟着被改写；
+> 而且续期复用同一条 `subscriptions` 记录，只看订阅表会把二次购买漏掉。
+> 历史订阅没有流水，迁移时按当时的套餐现价回填并标记 `estimated=1`，接口会返回
+> `estimatedPaymentCount` 与 `estimateNote` 如实说明这部分是估算值。
 
 > **两条容易踩的路径匹配规则**
 > 1. Security 的规则**自上而下先匹配先生效**：「需要登录」的规则必须写在「公开 GET」之前，否则 `/contents/mine` 会被 `GET /contents/**` 放行；`POST /contents/*/favorite` 也必须写在 `DELETE /contents/**` 之前，否则会被创作者角色规则拦掉。

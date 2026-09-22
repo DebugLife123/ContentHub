@@ -87,6 +87,15 @@ public class TokenAuthenticationFilter extends OncePerRequestFilter {
 
                     var userDetails = userDetailsService.loadUserByUsername(username);
 
+                    // 账号被管理员禁用后必须立刻挡住：token 在 Redis 里仍然存在，
+                    // 只靠登录时的 DisabledException 拦不住「禁用前签发、禁用后继续用」的旧 token。
+                    // 这里每次都从库里重新加载 UserDetails，所以 isEnabled() 是当前真实状态。
+                    if (!userDetails.isEnabled()) {
+                        authenticationEntryPoint.commence(request, response,
+                                new AuthenticationServiceException("账号已被禁用，请联系管理员"));
+                        return;
+                    }
+
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

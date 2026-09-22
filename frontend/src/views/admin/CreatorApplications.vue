@@ -53,8 +53,9 @@
           </td>
           <td class="admin-actions">
             <template v-if="item.status === 'PENDING'">
-              <a @click.prevent="approve(item)">通过</a>
-              <a class="is-danger" @click.prevent="openReject(item)">驳回</a>
+              <a :class="{ 'is-busy': actingId === item.id }" @click.prevent="approve(item)">通过</a>
+              <a class="is-danger" :class="{ 'is-busy': actingId === item.id }"
+                 @click.prevent="openReject(item)">驳回</a>
             </template>
             <span v-else class="admin-cell-mono">已处理</span>
           </td>
@@ -97,6 +98,8 @@ import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 const loading = ref(true)
 const saving = ref(false)
+/** 正在审核的行 id：请求在途时禁用该行操作，避免连点产生两次审核 */
+const actingId = ref<number | null>(null)
 const items = ref<CreatorApplication[]>([])
 const total = ref(0)
 const pendingTotal = ref(0)
@@ -177,6 +180,8 @@ function handlePageChange(p: number) {
 }
 
 async function approve(item: CreatorApplication) {
+  if (actingId.value !== null) return
+  actingId.value = item.id
   try {
     const res = await approveCreatorApplication(item.id)
     if (res.data.success) {
@@ -187,10 +192,13 @@ async function approve(item: CreatorApplication) {
     }
   } catch (e) {
     flash(errText(e, '操作失败'), 'error')
+  } finally {
+    actingId.value = null
   }
 }
 
 function openReject(item: CreatorApplication) {
+  if (actingId.value !== null) return
   rejectTarget.value = item
   rejectReason.value = ''
   rejectVisible.value = true

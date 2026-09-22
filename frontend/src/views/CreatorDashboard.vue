@@ -39,6 +39,7 @@
       </div>
 
       <div v-if="loading" class="empty-state">正在加载…</div>
+      <div v-else-if="loadError" class="empty-state" role="alert"><p>{{ loadError }}</p><el-button @click="load">重试</el-button></div>
       <div v-else-if="!items.length" class="empty-state">
         还没有内容，点右上角「发布新内容」写下第一篇。
       </div>
@@ -69,10 +70,11 @@
             <td>{{ item.viewCount || 0 }}</td>
             <td class="cell-actions">
               <!-- 状态流转按计划 Day 21 的规则给出可用操作 -->
-              <a v-if="canSubmit(item.status)" @click.prevent="doSubmit(item)">提交审核</a>
-              <a v-if="item.status === 'PUBLISHED'" @click.prevent="doOffline(item)">下架</a>
-              <a @click.prevent="$router.push(`/creator/contents/${item.id}/edit`)">编辑</a>
-              <a class="danger" @click.prevent="handleDelete(item)">删除</a>
+              <a v-if="canSubmit(item.status)" :class="{ disabled: actingId === item.id }" @click.prevent="doSubmit(item)">{{ actingId === item.id ? '处理中…' : '提交审核' }}</a>
+              <a v-if="item.status === 'PUBLISHED'" :class="{ disabled: actingId === item.id }" @click.prevent="doOffline(item)">下架</a>
+              <a v-if="!['PENDING', 'PUBLISHED'].includes(item.status)" @click.prevent="$router.push(`/creator/contents/${item.id}/edit`)">编辑</a>
+              <span v-else class="edit-disabled">先下架后编辑</span>
+              <a class="danger" :class="{ disabled: actingId === item.id }" @click.prevent="handleDelete(item)">删除</a>
             </td>
           </tr>
         </tbody>
@@ -105,6 +107,8 @@ import type { ContentItem, ContentStatus, CreatorDashboard } from '@/api/types'
 const userStore = useUserStore()
 
 const loading = ref(true)
+const loadError = ref('')
+const actingId = ref<number | null>(null)
 const items = ref<ContentItem[]>([])
 const total = ref(0)
 const pageNum = ref(1)
@@ -158,6 +162,7 @@ function canSubmit(status: ContentStatus) {
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     const res = await pageMyContents({
       pageNum: pageNum.value,
@@ -167,10 +172,12 @@ async function load() {
     if (res.data.success) {
       items.value = res.data.data.list
       total.value = res.data.data.total
+    } else {
+      loadError.value = res.data.message || '内容加载失败，请重试'
     }
-  } catch {
-    items.value = []
-    total.value = 0
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } } }
+    loadError.value = err.response?.data?.message || '内容加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -186,26 +193,50 @@ function handlePageChange(page: number) {
 }
 
 async function doSubmit(item: ContentItem) {
-  const res = await submitContent(item.id)
-  if (res.data.success) {
-    ElMessage.success('已提交审核，等待管理员处理')
-    load()
-  } else {
-    ElMessage.error(res.data.message || '提交失败')
+  if (actingId.value !== null) return
+  actingId.value = item.id
+  try {
+    const res = await submitContent(item.id)
+    if (res.data.success) {
+      ElMessage.success('已提交审核，等待管理员处理')
+      load()
+    } else {
+      ElMessage.error(res.data.message || '提交失败')
+    }
+  } catch {
+    ElMessage.error('提交失败，请重试')
+  } finally {
+    actingId.value = null
   }
 }
 
 async function doOffline(item: ContentItem) {
-  const res = await offlineContent(item.id)
-  if (res.data.success) {
-    ElMessage.success('已下架')
-    load()
-  } else {
-    ElMessage.error(res.data.message || '下架失败')
+  if (actingId.value !== null) return
+  actingId.value = item.id
+  try {
+    await ElMessageBox.confirm(`确定下架《${item.title}》吗？`, '下架确认',
+      { confirmButtonText: '下架', cancelButtonText: '取消', type: 'warning' })
+  } catch {
+    actingId.value = null
+    return
+  }
+  try {
+    const res = await offlineContent(item.id)
+    if (res.data.success) {
+      ElMessage.success('已下架')
+      load()
+    } else {
+      ElMessage.error(res.data.message || '下架失败')
+    }
+  } catch {
+    ElMessage.error('下架失败，请重试')
+  } finally {
+    actingId.value = null
   }
 }
 
 async function handleDelete(item: ContentItem) {
+  if (actingId.value !== null) return
   try {
     await ElMessageBox.confirm(`确定删除《${item.title}》吗？`, '删除确认', {
       confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
@@ -213,12 +244,19 @@ async function handleDelete(item: ContentItem) {
   } catch {
     return
   }
-  const res = await deleteContent(item.id)
-  if (res.data.success) {
-    ElMessage.success('已删除')
-    load()
-  } else {
-    ElMessage.error(res.data.message || '删除失败')
+  actingId.value = item.id
+  try {
+    const res = await deleteContent(item.id)
+    if (res.data.success) {
+      ElMessage.success('已删除')
+      load()
+    } else {
+      ElMessage.error(res.data.message || '删除失败')
+    }
+  } catch {
+    ElMessage.error('删除失败，请重试')
+  } finally {
+    actingId.value = null
   }
 }
 
@@ -279,6 +317,8 @@ onMounted(async () => {
   cursor: pointer;
   text-decoration: underline;
 }
+.cell-actions a.disabled { pointer-events: none; opacity: 0.45; }
+.edit-disabled { color: var(--muted); font-size: 11px; margin-right: 12px; }
 .cell-actions a.danger {
   color: #c54a32;
 }

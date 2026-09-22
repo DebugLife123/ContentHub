@@ -9,6 +9,10 @@
     </div>
 
     <div v-if="loading" class="empty-state">正在加载…</div>
+    <div v-else-if="loadError" class="empty-state" role="alert">
+      <p>{{ loadError }}</p>
+      <el-button @click="load">重试</el-button>
+    </div>
     <div v-else-if="!plans.length" class="empty-state">暂时还没有上架的订阅方案。</div>
     <div v-else class="plan-grid">
       <article v-for="plan in plans" :key="plan.id" class="plan-card">
@@ -20,6 +24,7 @@
         <el-button
           class="button button-dark full-button"
           :loading="payingId === plan.id"
+          :disabled="payingId !== null"
           @click="buy(plan)"
         >
           {{ isLoggedIn ? '立即订阅' : '登录后订阅' }} <span>↗</span>
@@ -41,30 +46,41 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { listPlans } from '@/api/plan'
-import { payMock } from '@/api/subscription'
+import { newIdempotencyKey, payMock } from '@/api/subscription'
 import { useUserStore } from '@/stores/user'
 import type { SubscriptionPlan } from '@/api/types'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const loading = ref(true)
+const loadError = ref('')
 const payingId = ref<number | null>(null)
+const paymentKey = ref<{ planId: number; key: string } | null>(null)
 const plans = ref<SubscriptionPlan[]>([])
 const message = ref('')
+const requestedCreatorId = computed(() => {
+  const value = Number(route.query.creatorId)
+  return Number.isFinite(value) && value > 0 ? value : null
+})
 
 const isLoggedIn = computed(() => userStore.isLoggedIn)
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     const res = await listPlans()
-    if (res.data.success) plans.value = res.data.data
-  } catch {
-    plans.value = []
+    if (!res.data.success) throw new Error(res.data.message || '订阅方案加载失败')
+    plans.value = requestedCreatorId.value
+      ? res.data.data.filter((plan) => plan.creatorId === requestedCreatorId.value)
+      : res.data.data
+  } catch (e) {
+    loadError.value = e instanceof Error ? e.message : '订阅方案加载失败，请重试'
   } finally {
     loading.value = false
   }
@@ -72,18 +88,28 @@ async function load() {
 
 async function buy(plan: SubscriptionPlan) {
   if (!isLoggedIn.value) {
-    router.push({ path: '/login', query: { redirect: '/plans' } })
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
     return
   }
+  if (payingId.value !== null) return
   payingId.value = plan.id
   message.value = ''
   try {
-    const res = await payMock(plan.id)
+    if (paymentKey.value?.planId !== plan.id) {
+      paymentKey.value = { planId: plan.id, key: newIdempotencyKey() }
+    }
+    const res = await payMock(plan.id, paymentKey.value.key)
     if (res.data.success) {
+      paymentKey.value = null
       const sub = res.data.data
       message.value = `模拟支付成功：${sub.planName}，有效期至 ${sub.endTime}（剩余 ${sub.remainingDays} 天）`
       ElMessage.success('订阅成功')
-      await load()
+      const returnTo = route.query.returnTo
+      if (typeof returnTo === 'string' && /^\/content\/\d+(?:[?#].*)?$/.test(returnTo)) {
+        await router.push(returnTo)
+      } else {
+        await load()
+      }
     } else {
       ElMessage.error(res.data.message || '订阅失败')
     }

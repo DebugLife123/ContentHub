@@ -29,6 +29,15 @@ public interface ContentService {
     /** 作者视角详情：不限状态，始终返回完整内容（编辑回显用） */
     Response<ContentDetailVO> findMineById(Long id);
 
+    /**
+     * 管理端审核详情：不限状态、不做订阅权限判断，始终返回完整正文。
+     *
+     * <p>审核列表用的是 {@code ContentListVO}，它刻意不含 {@code body}；
+     * 管理员要判断「这篇能不能过」就必须能看到正文，所以单独开一个接口，
+     * 而不是把正文塞回列表（那会让列表接口重新变重）。</p>
+     */
+    Response<ContentDetailVO> findForReview(Long id);
+
     /** 新增内容：一律以 DRAFT 落库，发布必须走审核 */
     Response<Long> create(ContentReqVO req);
 

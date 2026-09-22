@@ -9,6 +9,7 @@
     </div>
 
     <div v-if="loading" class="empty-state">正在加载…</div>
+    <div v-else-if="loadError" class="empty-state" role="alert"><p>{{ loadError }}</p><el-button @click="load">重试</el-button></div>
     <div v-else-if="!items.length" class="empty-state">
       还没有订阅记录，去 <RouterLink to="/plans">订阅方案</RouterLink> 看看。
     </div>
@@ -30,8 +31,8 @@
           </td>
           <td class="cell-actions">
             <template v-if="item.valid">
-              <a @click.prevent="handleCancel(item)">提前终止</a>
-              <a class="danger" @click.prevent="handleRefund(item)">申请退款</a>
+              <a :class="{ disabled: actingId === item.id }" @click.prevent="handleCancel(item)">{{ actingId === item.id ? '处理中…' : '提前终止' }}</a>
+              <a class="danger" :class="{ disabled: actingId === item.id }" @click.prevent="handleRefund(item)">申请退款</a>
             </template>
             <span v-else class="muted">—</span>
           </td>
@@ -58,6 +59,8 @@ import { cancelSubscription, mySubscriptions, refundSubscription } from '@/api/s
 import type { Subscription } from '@/api/types'
 
 const loading = ref(true)
+const loadError = ref('')
+const actingId = ref<number | null>(null)
 const items = ref<Subscription[]>([])
 const total = ref(0)
 const pageNum = ref(1)
@@ -85,6 +88,8 @@ function errText(e: unknown, fallback: string) {
 }
 
 async function handleCancel(item: Subscription) {
+  if (actingId.value !== null) return
+  actingId.value = item.id
   try {
     await ElMessageBox.confirm(
       '终止后你会立即失去该创作者付费内容的访问权限，且无法恢复。确定吗？',
@@ -92,6 +97,7 @@ async function handleCancel(item: Subscription) {
       { confirmButtonText: '确定终止', cancelButtonText: '取消', type: 'warning' }
     )
   } catch {
+    actingId.value = null
     return
   }
   try {
@@ -104,10 +110,14 @@ async function handleCancel(item: Subscription) {
     }
   } catch (e) {
     ElMessage.error(errText(e, '操作失败'))
+  } finally {
+    actingId.value = null
   }
 }
 
 async function handleRefund(item: Subscription) {
+  if (actingId.value !== null) return
+  actingId.value = item.id
   try {
     await ElMessageBox.confirm(
       '这是模拟退款：订阅会置为「已退款」并从创作者收益中扣除，你会立即失去访问权限。确定吗？',
@@ -115,6 +125,7 @@ async function handleRefund(item: Subscription) {
       { confirmButtonText: '确定退款', cancelButtonText: '取消', type: 'warning' }
     )
   } catch {
+    actingId.value = null
     return
   }
   try {
@@ -127,20 +138,21 @@ async function handleRefund(item: Subscription) {
     }
   } catch (e) {
     ElMessage.error(errText(e, '操作失败'))
+  } finally {
+    actingId.value = null
   }
 }
 
 async function load() {
   loading.value = true
+  loadError.value = ''
   try {
     const res = await mySubscriptions(pageNum.value, pageSize.value)
-    if (res.data.success) {
-      items.value = res.data.data.list
-      total.value = res.data.data.total
-    }
-  } catch {
-    items.value = []
-    total.value = 0
+    if (!res.data.success) throw new Error(res.data.message || '订阅记录加载失败')
+    items.value = res.data.data.list
+    total.value = res.data.data.total
+  } catch (e) {
+    loadError.value = errText(e, '订阅记录加载失败，请重试')
   } finally {
     loading.value = false
   }
@@ -175,6 +187,7 @@ onMounted(load)
   white-space: nowrap;
 }
 .cell-actions a.danger { color: #c54a32; }
+.cell-actions a.disabled { pointer-events: none; opacity: 0.45; }
 .muted { color: var(--muted); }
 .foot-note {
   margin-top: 22px;

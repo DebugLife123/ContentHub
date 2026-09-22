@@ -5,6 +5,7 @@ import com.contenthub.common.utils.PageResponse;
 import com.contenthub.common.utils.Response;
 import com.contenthub.web.model.req.ContentPageReqVO;
 import com.contenthub.web.model.req.ReviewReqVO;
+import com.contenthub.web.model.vo.ContentDetailVO;
 import com.contenthub.web.model.vo.ContentListVO;
 import com.contenthub.web.service.ContentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,6 +39,12 @@ public class AdminContentController {
     @Operation(summary = "内容列表（可按状态筛选，默认待审核）")
     public Response<PageResponse<ContentListVO>> page(@Validated ContentPageReqVO req) {
         return contentService.pageForReview(req);
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "审核详情（不限状态，返回完整正文供审核判断）")
+    public Response<ContentDetailVO> detail(@PathVariable Long id) {
+        return contentService.findForReview(id);
     }
 
     @PostMapping("/{id}/approve")

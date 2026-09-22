@@ -1,9 +1,12 @@
 package com.contenthub.web.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.contenthub.common.domain.dos.CreatorProfileDO;
 import com.contenthub.common.domain.dos.SubscriptionDO;
+import com.contenthub.common.domain.dos.SubscriptionPaymentDO;
+import com.contenthub.common.domain.mapper.SubscriptionPaymentMapper;
 import com.contenthub.common.domain.dos.SubscriptionPlanDO;
 import com.contenthub.common.domain.mapper.CreatorProfileMapper;
 import com.contenthub.common.domain.mapper.SubscriptionMapper;
@@ -31,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.commons.lang3.StringUtils;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
@@ -42,19 +46,40 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private final SubscriptionMapper subscriptionMapper;
     private final SubscriptionPlanMapper planMapper;
     private final CreatorProfileMapper creatorProfileMapper;
+    private final SubscriptionPaymentMapper paymentMapper;
 
     public SubscriptionServiceImpl(SubscriptionMapper subscriptionMapper,
                                    SubscriptionPlanMapper planMapper,
-                                   CreatorProfileMapper creatorProfileMapper) {
+                                   CreatorProfileMapper creatorProfileMapper,
+                                   SubscriptionPaymentMapper paymentMapper) {
         this.subscriptionMapper = subscriptionMapper;
         this.planMapper = planMapper;
         this.creatorProfileMapper = creatorProfileMapper;
+        this.paymentMapper = paymentMapper;
     }
 
     @Override
     @Transactional
-    public Response<SubscriptionVO> payMock(Long planId) {
+    public Response<SubscriptionVO> payMock(Long planId, String idempotencyKey) {
         LoginUser loginUser = CurrentUserUtil.requireLoginUser();
+        if (StringUtils.isBlank(idempotencyKey) || idempotencyKey.length() > 128) {
+            throw new BizException(ResponseCodeEnum.PARAM_NOT_VALID.getErrorCode(), "Idempotency-Key must contain 1-128 characters");
+        }
+        // Lock a row that exists even before the first subscription. Every pay/close uses this lock.
+        subscriptionMapper.lockUser(loginUser.getUserId());
+        SubscriptionPaymentDO prior = paymentMapper.selectOne(new LambdaQueryWrapper<SubscriptionPaymentDO>()
+                .eq(SubscriptionPaymentDO::getUserId, loginUser.getUserId())
+                .eq(SubscriptionPaymentDO::getIdempotencyKey, idempotencyKey));
+        if (prior != null) {
+            if (!Objects.equals(prior.getPlanId(), planId)) {
+                throw new BizException(ResponseCodeEnum.PARAM_NOT_VALID.getErrorCode(), "Idempotency-Key was already used for another plan");
+            }
+            SubscriptionDO sub = subscriptionMapper.selectById(prior.getSubscriptionId());
+            if (sub == null) {
+                throw new BizException(ResponseCodeEnum.SUBSCRIPTION_NOT_FOUND);
+            }
+            return Response.success(toVO(sub, prior.getPlanNameSnapshot(), creatorName(prior.getCreatorId())));
+        }
 
         SubscriptionPlanDO plan = planMapper.selectById(planId);
         if (Objects.isNull(plan) || !"ACTIVE".equals(plan.getStatus())) {
@@ -89,6 +114,13 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                     .build();
             subscriptionMapper.insert(result);
         }
+
+        paymentMapper.insert(SubscriptionPaymentDO.builder()
+                .userId(loginUser.getUserId()).subscriptionId(result.getId())
+                .planId(plan.getId()).creatorId(plan.getCreatorId())
+                .idempotencyKey(idempotencyKey).amountSnapshot(plan.getPrice())
+                .planNameSnapshot(plan.getName()).durationDaysSnapshot(plan.getDurationDays())
+                .paidAt(now).estimated(false).build());
 
         log.info("模拟支付成功：user={} plan={} 金额={} {}",
                 loginUser.getUsername(), plan.getName(), plan.getPrice(), renewed ? "(续期)" : "(新订阅)");
@@ -152,7 +184,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
         LocalDateTime now = LocalDateTime.now();
         boolean expiredByTime = sub.getEndTime() != null && !sub.getEndTime().isAfter(now);
         // 库里的 status 可能仍是 ACTIVE 但时间已过，展示与鉴权都按时间纠正
-        String displayStatus = expiredByTime ? "EXPIRED" : sub.getStatus();
+        String displayStatus = expiredByTime && "ACTIVE".equals(sub.getStatus()) ? "EXPIRED" : sub.getStatus();
         boolean valid = "ACTIVE".equals(displayStatus);
 
         long remainingDays = 0;
@@ -202,6 +234,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     private Response<Void> close(Long subscriptionId, String target) {
         LoginUser loginUser = CurrentUserUtil.requireLoginUser();
 
+        subscriptionMapper.lockUser(loginUser.getUserId());
         SubscriptionDO sub = subscriptionMapper.selectById(subscriptionId);
         if (sub == null) {
             throw new BizException(ResponseCodeEnum.SUBSCRIPTION_NOT_FOUND);
@@ -219,11 +252,16 @@ public class SubscriptionServiceImpl implements SubscriptionService {
             throw new BizException(ResponseCodeEnum.SUBSCRIPTION_NOT_ACTIVE);
         }
 
-        subscriptionMapper.updateById(SubscriptionDO.builder()
-                .id(subscriptionId)
-                .status(target)
-                .closedTime(now)
-                .build());
+        int changed = subscriptionMapper.update(null, new LambdaUpdateWrapper<SubscriptionDO>()
+                .eq(SubscriptionDO::getId, subscriptionId)
+                .eq(SubscriptionDO::getUserId, loginUser.getUserId())
+                .eq(SubscriptionDO::getStatus, "ACTIVE")
+                .gt(SubscriptionDO::getEndTime, now)
+                .set(SubscriptionDO::getStatus, target)
+                .set(SubscriptionDO::getClosedTime, now));
+        if (changed != 1) {
+            throw new BizException(ResponseCodeEnum.SUBSCRIPTION_NOT_ACTIVE);
+        }
 
         log.info("订阅 {} 用户 {} {}（原到期时间 {}）", subscriptionId, loginUser.getUsername(),
                 "REFUNDED".equals(target) ? "申请退款" : "提前终止", sub.getEndTime());
@@ -243,50 +281,52 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                         .orderByDesc(SubscriptionDO::getId));
 
         Map<Long, SubscriptionPlanDO> plans = plansOf(subs);
+        List<SubscriptionPaymentDO> payments = paymentMapper.selectList(
+                new LambdaQueryWrapper<SubscriptionPaymentDO>()
+                        .eq(SubscriptionPaymentDO::getCreatorId, loginUser.getUserId())
+                        .orderByAsc(SubscriptionPaymentDO::getId));
+        Map<Long, SubscriptionDO> subscriptions = subs.stream().collect(Collectors.toMap(SubscriptionDO::getId, s -> s));
         LocalDateTime now = LocalDateTime.now();
 
         BigDecimal total = BigDecimal.ZERO;
         BigDecimal refunded = BigDecimal.ZERO;
         long activeCount = 0;
 
-        Map<Long, Long> countByPlan = new LinkedHashMap<>();
-        Map<Long, BigDecimal> amountByPlan = new LinkedHashMap<>();
+        record PlanSnapshot(Long planId, String name, BigDecimal price) {}
+        Map<PlanSnapshot, Long> countByPlan = new LinkedHashMap<>();
+        Map<PlanSnapshot, BigDecimal> amountByPlan = new LinkedHashMap<>();
         Map<String, Long> countByMonth = new TreeMap<>(Comparator.reverseOrder());
         Map<String, BigDecimal> amountByMonth = new TreeMap<>(Comparator.reverseOrder());
 
-        for (SubscriptionDO sub : subs) {
-            SubscriptionPlanDO plan = plans.get(sub.getPlanId());
-            BigDecimal price = plan == null || plan.getPrice() == null ? BigDecimal.ZERO : plan.getPrice();
-
-            if ("ACTIVE".equals(sub.getStatus())
-                    && sub.getEndTime() != null && sub.getEndTime().isAfter(now)) {
-                activeCount++;
-            }
-
-            // 退款单不算收益，也不进套餐/月度拆分，只单独累计退款金额
-            if ("REFUNDED".equals(sub.getStatus())) {
+        activeCount = subs.stream().filter(s -> "ACTIVE".equals(s.getStatus())
+                && s.getEndTime() != null && s.getEndTime().isAfter(now)).count();
+        for (SubscriptionPaymentDO payment : payments) {
+            SubscriptionDO sub = subscriptions.get(payment.getSubscriptionId());
+            BigDecimal price = payment.getAmountSnapshot();
+            // Refund closes the complete subscription, including all its renewals.
+            if (sub != null && "REFUNDED".equals(sub.getStatus())) {
                 refunded = refunded.add(price);
                 continue;
             }
 
             total = total.add(price);
-            countByPlan.merge(sub.getPlanId(), 1L, Long::sum);
-            amountByPlan.merge(sub.getPlanId(), price, BigDecimal::add);
+            PlanSnapshot snapshot = new PlanSnapshot(payment.getPlanId(), payment.getPlanNameSnapshot(), price);
+            countByPlan.merge(snapshot, 1L, Long::sum);
+            amountByPlan.merge(snapshot, price, BigDecimal::add);
 
-            String month = sub.getCreateTime() == null
+            String month = payment.getPaidAt() == null
                     ? "未知"
-                    : sub.getCreateTime().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+                    : payment.getPaidAt().format(DateTimeFormatter.ofPattern("yyyy-MM"));
             countByMonth.merge(month, 1L, Long::sum);
             amountByMonth.merge(month, price, BigDecimal::add);
         }
 
         List<CreatorRevenueVO.PlanRevenue> byPlan = countByPlan.entrySet().stream()
                 .map(e -> {
-                    SubscriptionPlanDO plan = plans.get(e.getKey());
                     return CreatorRevenueVO.PlanRevenue.builder()
-                            .planId(e.getKey())
-                            .planName(plan == null ? "已删除的套餐" : plan.getName())
-                            .price(plan == null ? BigDecimal.ZERO : plan.getPrice())
+                            .planId(e.getKey().planId())
+                            .planName(e.getKey().name())
+                            .price(e.getKey().price())
                             .count(e.getValue())
                             .amount(amountByPlan.getOrDefault(e.getKey(), BigDecimal.ZERO))
                             .build();
@@ -310,11 +350,22 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                 })
                 .toList();
 
+        // 历史数据是回填的（金额取自当时的套餐现价，不是真实成交价）。
+        // 必须如实告知，否则这份收益看起来像精确账目。
+        long estimatedCount = payments.stream()
+                .filter(p -> Boolean.TRUE.equals(p.getEstimated()))
+                .count();
+
         return Response.success(CreatorRevenueVO.builder()
                 .totalRevenue(total)
                 .refundedAmount(refunded)
                 .subscriptionCount(subs.size())
                 .activeCount(activeCount)
+                .estimatedPaymentCount(estimatedCount)
+                .estimateNote(estimatedCount > 0
+                        ? "其中 " + estimatedCount + " 笔为历史数据回填：这些订阅建立时还没有支付流水，"
+                          + "金额按当时的套餐现价估算，并非真实成交价。"
+                        : null)
                 .byPlan(byPlan)
                 .monthly(monthly)
                 .recent(recent)

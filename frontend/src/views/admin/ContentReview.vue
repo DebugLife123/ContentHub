@@ -42,11 +42,13 @@
             <span class="admin-tag" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
           </td>
           <td class="admin-actions">
+            <!-- 查看必须始终可用：审核的第一动作是看正文，待审核行尤其需要 -->
+            <a :class="{ 'is-busy': previewingId === item.id }" @click.prevent="preview(item)">查看</a>
             <template v-if="item.status === 'PENDING'">
-              <a @click.prevent="doApprove(item)">通过</a>
-              <a class="is-danger" @click.prevent="openReject(item)">驳回</a>
+              <a :class="{ 'is-busy': actingId === item.id }" @click.prevent="doApprove(item)">通过</a>
+              <a class="is-danger" :class="{ 'is-busy': actingId === item.id }"
+                 @click.prevent="openReject(item)">驳回</a>
             </template>
-            <a v-else @click.prevent="preview(item)">查看</a>
           </td>
         </tr>
       </tbody>
@@ -70,7 +72,8 @@
 
     <!-- 内容预览抽屉：排版渲染与读者端一致，可切换查看源文 -->
     <el-drawer v-model="drawerVisible" class="admin-drawer" title="内容详情" size="52%">
-      <div v-if="current" class="drawer-body">
+      <p v-if="drawerLoading" class="admin-loading">LOADING…</p>
+      <div v-else-if="current" class="drawer-body">
         <h3>{{ current.title }}</h3>
         <p class="drawer-meta">
           #{{ current.id }} · 创作者 #{{ current.creatorId }} · {{ current.categoryName || '未分类' }}
@@ -81,7 +84,7 @@
         </p>
         <p class="drawer-summary">{{ current.summary }}</p>
         <ArticleBody v-if="drawerMode === 'preview'" :blocks="drawerBlocks" />
-        <pre v-else class="drawer-text">{{ current.body || current.bodyPreview || '（无正文）' }}</pre>
+        <pre v-else class="drawer-text">{{ current.body || '（无正文）' }}</pre>
       </div>
     </el-drawer>
   </div>
@@ -89,7 +92,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { approveContent, pageForReview, rejectContent } from '@/api/content'
+import { approveContent, getAdminContent, pageForReview, rejectContent } from '@/api/content'
 import type { ContentItem, ContentStatus } from '@/api/types'
 import { parseArticleBody } from '@/utils/articleParser'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
@@ -97,6 +100,11 @@ import ArticleBody from '@/components/article/ArticleBody.vue'
 
 const loading = ref(true)
 const saving = ref(false)
+/** 正在审核的行 id：审核请求在途时禁用该行操作，避免连点发出两次审核 */
+const actingId = ref<number | null>(null)
+/** 正在拉取正文的行 id：抽屉打开前要先取回 body（列表接口不返回正文） */
+const previewingId = ref<number | null>(null)
+const drawerLoading = ref(false)
 const items = ref<ContentItem[]>([])
 const total = ref(0)
 const pageNum = ref(1)
@@ -183,6 +191,8 @@ function handlePageChange(page: number) {
 }
 
 async function doApprove(item: ContentItem) {
+  if (actingId.value !== null) return
+  actingId.value = item.id
   try {
     const res = await approveContent(item.id)
     if (res.data.success) {
@@ -194,10 +204,13 @@ async function doApprove(item: ContentItem) {
   } catch (e) {
     const err = e as { response?: { data?: { message?: string } } }
     flash(err.response?.data?.message || '操作失败', 'error')
+  } finally {
+    actingId.value = null
   }
 }
 
 function openReject(item: ContentItem) {
+  if (actingId.value !== null) return
   rejectTarget.value = item
   rejectReason.value = ''
   rejectVisible.value = true
@@ -227,10 +240,33 @@ async function confirmReject() {
   }
 }
 
-function preview(item: ContentItem) {
-  current.value = item
+/**
+ * 打开预览。
+ *
+ * 列表接口返回的 ContentListVO 不含 body，所以这里必须再拉一次审核详情，
+ * 否则「查看」打开的是空正文——审核者最需要看的东西反而看不到。
+ */
+async function preview(item: ContentItem) {
+  if (previewingId.value !== null) return
+  previewingId.value = item.id
   drawerMode.value = 'preview'
   drawerVisible.value = true
+  drawerLoading.value = true
+  current.value = item
+  try {
+    const res = await getAdminContent(item.id)
+    if (res.data.success) {
+      current.value = res.data.data
+    } else {
+      flash(res.data.message || '加载正文失败', 'error')
+    }
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } } }
+    flash(err.response?.data?.message || '加载正文失败', 'error')
+  } finally {
+    drawerLoading.value = false
+    previewingId.value = null
+  }
 }
 
 onMounted(load)

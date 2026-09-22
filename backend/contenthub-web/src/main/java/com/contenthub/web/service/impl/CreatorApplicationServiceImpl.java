@@ -122,12 +122,13 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
         CreatorApplicationDO application = requirePending(id);
         LoginUser reviewer = CurrentUserUtil.requireLoginUser();
 
-        applicationMapper.updateById(CreatorApplicationDO.builder()
-                .id(id)
-                .status(APPROVED)
-                .reviewerId(reviewer.getUserId())
-                .reviewTime(LocalDateTime.now())
-                .build());
+        // 条件更新：并发下只有先到的那次能改成功，避免「角色已升级但申请被改成驳回」
+        int affected = applicationMapper.review(id, APPROVED, null,
+                reviewer.getUserId(), LocalDateTime.now());
+        if (affected == 0) {
+            throw new BizException(ResponseCodeEnum.APPLICATION_STATUS_ILLEGAL.getErrorCode(),
+                    "该申请已被其他管理员处理，请刷新后查看");
+        }
 
         UserDO user = userMapper.selectById(application.getUserId());
         if (user == null) {
@@ -162,13 +163,12 @@ public class CreatorApplicationServiceImpl implements CreatorApplicationService 
         CreatorApplicationDO application = requirePending(id);
         LoginUser reviewer = CurrentUserUtil.requireLoginUser();
 
-        applicationMapper.updateById(CreatorApplicationDO.builder()
-                .id(id)
-                .status(REJECTED)
-                .rejectReason(reason)
-                .reviewerId(reviewer.getUserId())
-                .reviewTime(LocalDateTime.now())
-                .build());
+        int affected = applicationMapper.review(id, REJECTED, reason,
+                reviewer.getUserId(), LocalDateTime.now());
+        if (affected == 0) {
+            throw new BizException(ResponseCodeEnum.APPLICATION_STATUS_ILLEGAL.getErrorCode(),
+                    "该申请已被其他管理员处理，请刷新后查看");
+        }
 
         notificationService.push(application.getUserId(), "CREATOR_REJECTED", "创作者申请未通过",
                 StringUtils.isBlank(reason) ? "管理员未填写原因，可修改资料后重新申请。" : reason,

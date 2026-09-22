@@ -54,6 +54,16 @@ export function pageForReview(query: ContentQuery = {}) {
   return api.get<ApiResponse<PageResult<ContentItem>>>('/admin/contents', { params: query })
 }
 
+/**
+ * 管理端审核详情：不限状态，返回完整正文。
+ *
+ * 审核列表的 ContentListVO 不含 body，所以审核抽屉必须单独拉这个接口，
+ * 否则「查看」拿到的是空正文。
+ */
+export function getAdminContent(id: string | number) {
+  return api.get<ApiResponse<ContentItem>>(`/admin/contents/${id}`)
+}
+
 export function approveContent(id: number) {
   return api.post<ApiResponse<void>>(`/admin/contents/${id}/approve`)
 }

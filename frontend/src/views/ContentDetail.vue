@@ -4,7 +4,7 @@
   </div>
 
   <div v-else-if="error" class="art-page">
-    <div class="empty-state">{{ error }}</div>
+    <div class="empty-state" role="alert"><p>{{ error }}</p><el-button @click="load(route.params.id as string)">重试</el-button></div>
   </div>
 
   <ArticleLayout v-else>
@@ -28,7 +28,7 @@
       </div>
       <ArticleBody :blocks="previewBlocks" preview />
       <div class="art-lock-actions">
-        <el-button class="button button-dark" @click="$router.push('/plans')">
+        <el-button class="button button-dark" @click="goToPlans">
           查看订阅方案 <span>↗</span>
         </el-button>
         <span class="art-lock-note">订阅后可阅读正文并获取附件地址</span>
@@ -171,7 +171,12 @@ async function loadPrevNext() {
 
 // ------------------------------------------------------------------ 互动
 
+function goToPlans() {
+  router.push({ path: '/plans', query: { creatorId: content.value.creatorId, returnTo: route.fullPath } })
+}
+
 async function toggleFavorite() {
+  if (favoriting.value) return
   if (!userStore.isLoggedIn) {
     router.push({ path: '/login', query: { redirect: route.fullPath } })
     return
@@ -215,11 +220,13 @@ let reportTimer: number | undefined
  * 只对已解锁且登录的读者上报；节流到 3 秒一次。
  */
 function handleScroll() {
-  if (!userStore.isLoggedIn || content.value.locked || !content.value.id) return
+  if (loading.value || error.value || !userStore.isLoggedIn || content.value.locked || !content.value.id) return
   if (reportTimer) return
+  const id = content.value.id
 
   reportTimer = window.setTimeout(async () => {
     reportTimer = undefined
+    if (loading.value || error.value || content.value.id !== id || !userStore.isLoggedIn || content.value.locked) return
     const doc = document.documentElement
     const scrollable = doc.scrollHeight - doc.clientHeight
     const percent = scrollable <= 0
@@ -228,9 +235,9 @@ function handleScroll() {
 
     // 进度只上报增长，避免来回滚动时反复写库
     if (percent <= lastReported) return
-    lastReported = percent
     try {
-      await updateReadProgress(content.value.id, percent)
+      await updateReadProgress(id, percent)
+      if (content.value.id === id) lastReported = percent
     } catch {
       // 进度上报失败不影响阅读
     }
@@ -247,6 +254,8 @@ onMounted(() => {
 // 上一篇 / 下一篇 / 相关阅读 跳转的是同一路由组件，需要监听参数变化重载
 watch(() => route.params.id, (id, oldId) => {
   if (id && id !== oldId) {
+    window.clearTimeout(reportTimer)
+    reportTimer = undefined
     lastReported = -1
     window.scrollTo({ top: 0 })
     void load(id as string)
@@ -254,6 +263,8 @@ watch(() => route.params.id, (id, oldId) => {
 })
 
 onUnmounted(() => {
+  window.clearTimeout(reportTimer)
+  reportTimer = undefined
   window.removeEventListener('scroll', handleScroll)
 })
 </script>

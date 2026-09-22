@@ -21,7 +21,9 @@
       </div>
     </div>
 
-    <div v-if="!comments.length" class="art-comment-empty">还没有评论，来做第一个。</div>
+    <div v-if="loading" class="art-comment-empty">正在加载评论…</div>
+    <div v-else-if="loadError" class="art-comment-empty" role="alert"><p>{{ loadError }}</p><el-button @click="load">重试</el-button></div>
+    <div v-else-if="!comments.length" class="art-comment-empty">还没有评论，来做第一个。</div>
 
     <ul v-else class="art-comment-list">
       <li v-for="comment in comments" :key="comment.id" class="art-comment">
@@ -39,7 +41,7 @@
               class="is-danger"
               type="button"
               @click="remove(comment)"
-            >删除</button>
+            >{{ deletingId === comment.id ? '处理中…' : '删除' }}</button>
           </div>
         </div>
       </li>
@@ -61,7 +63,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { createComment, deleteComment, listComments } from '@/api/content'
 import { useUserStore } from '@/stores/user'
 import type { Comment } from '@/api/types'
@@ -78,6 +80,9 @@ const page = ref(1)
 const pageSize = ref(5)
 const draft = ref('')
 const posting = ref(false)
+const loading = ref(false)
+const loadError = ref('')
+const deletingId = ref<number | null>(null)
 
 function initialOf(comment: Comment): string {
   return (comment.username || 'U').slice(0, 1).toUpperCase()
@@ -85,15 +90,21 @@ function initialOf(comment: Comment): string {
 
 async function load() {
   if (!props.contentId) return
+  loading.value = true
+  loadError.value = ''
   try {
     const res = await listComments(props.contentId, page.value, pageSize.value)
     if (res.data.success) {
       comments.value = res.data.data.list
       total.value = res.data.data.total
+    } else {
+      loadError.value = res.data.message || '评论加载失败，请重试'
     }
-  } catch {
-    comments.value = []
-    total.value = 0
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } } }
+    loadError.value = err.response?.data?.message || '评论加载失败，请重试'
+  } finally {
+    loading.value = false
   }
 }
 
@@ -103,6 +114,7 @@ function handlePage(next: number) {
 }
 
 async function submit() {
+  if (posting.value) return
   if (!userStore.isLoggedIn) {
     router.push({ path: '/login', query: { redirect: route.fullPath } })
     return
@@ -140,12 +152,29 @@ function reply(comment: Comment) {
 }
 
 async function remove(comment: Comment) {
-  const res = await deleteComment(comment.id)
-  if (res.data.success) {
-    ElMessage.success('已删除')
-    await load()
-  } else {
-    ElMessage.error(res.data.message || '删除失败')
+  if (deletingId.value !== null) return
+  deletingId.value = comment.id
+  try {
+    await ElMessageBox.confirm('确定删除这条评论吗？', '删除确认', {
+      confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning',
+    })
+  } catch {
+    deletingId.value = null
+    return
+  }
+  try {
+    const res = await deleteComment(comment.id)
+    if (res.data.success) {
+      ElMessage.success('已删除')
+      await load()
+    } else {
+      ElMessage.error(res.data.message || '删除失败')
+    }
+  } catch (e) {
+    const err = e as { response?: { data?: { message?: string } } }
+    ElMessage.error(err.response?.data?.message || '删除失败')
+  } finally {
+    deletingId.value = null
   }
 }
 

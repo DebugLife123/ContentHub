@@ -30,6 +30,9 @@ public class CreatorRevenueVO implements Serializable {
     private long subscriptionCount;
     /** 当前生效中的订阅数 */
     private long activeCount;
+    /** Number of legacy rows whose amount was estimated during migration. */
+    private long estimatedPaymentCount;
+    private String estimateNote;
 
     private List<PlanRevenue> byPlan;
     private List<MonthlyRevenue> monthly;

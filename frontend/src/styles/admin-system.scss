@@ -452,6 +452,14 @@
 
     &.is-danger { color: #a33b2a; border-bottom-color: rgba(163, 59, 42, 0.3); }
     &.is-danger:hover { color: #8a2f21; border-bottom-color: #8a2f21; }
+
+    /* 操作在途：变灰 + 不可点，替代「看起来能点但点了没反应」 */
+    &.is-busy {
+      color: var(--muted);
+      border-bottom-color: transparent;
+      pointer-events: none;
+      opacity: 0.55;
+    }
   }
 }
 

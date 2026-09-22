@@ -173,6 +173,20 @@ public class ContentServiceImpl implements ContentService {
                 ContentAccessService.AccessDecision.allow()));
     }
 
+    @Override
+    public Response<ContentDetailVO> findForReview(Long id) {
+        ContentDO content = contentMapper.selectById(id);
+        if (Objects.isNull(content)) {
+            throw new BizException(ResponseCodeEnum.CONTENT_NOT_FOUND);
+        }
+
+        // 审核不看订阅权限：管理员必须能看到完整正文才能判断该不该放行。
+        // 权限由 /admin/** 的 ADMIN 角色规则保证，这里不再叠加内容级判断。
+        LoginUser loginUser = CurrentUserUtil.getLoginUser();
+        return Response.success(toDetailVO(content, categoryName(content.getCategoryId()), loginUser,
+                ContentAccessService.AccessDecision.allow()));
+    }
+
     // ------------------------------------------------------------------ 写入
 
     @Override
@@ -209,6 +223,10 @@ public class ContentServiceImpl implements ContentService {
     public Response<Void> update(Long id, ContentReqVO req) {
         ContentDO existing = requireExisting(id);
         requireOwnership(existing);
+        if ("PENDING".equals(existing.getStatus()) || "PUBLISHED".equals(existing.getStatus())) {
+            throw new BizException(ResponseCodeEnum.CONTENT_STATUS_ILLEGAL.getErrorCode(),
+                    "待审核或已发布内容不能直接编辑，请先等待审核结果或下架后再修改");
+        }
         validateCategory(req.getCategoryId());
 
         // 编辑接口刻意「不碰状态」：状态只能通过 submit / offline / approve / reject 流转。
@@ -289,7 +307,10 @@ public class ContentServiceImpl implements ContentService {
     }
 
     /**
-     * 统一的状态流转入口：先查状态机是否允许，再更新。
+     * 统一的状态流转入口：先查状态机是否允许，再用「带当前状态条件」的 UPDATE 落库。
+     *
+     * <p>条件更新而不是 updateById，是为了让并发审核只有一个能成功：
+     * 影响行数为 0 说明状态已经被别人改走，此时必须报错而不是当作成功。</p>
      *
      * <p>状态一变，内容就有资格/失去出现在公开页，缓存必须同步失效。</p>
      */
@@ -302,17 +323,13 @@ public class ContentServiceImpl implements ContentService {
                     String.format("状态不允许从 %s 变更为 %s", current, target));
         }
 
-        ContentDO update = ContentDO.builder()
-                .id(content.getId())
-                .status(target)
-                .rejectReason("REJECTED".equals(target) ? rejectReason : null)
-                .build();
+        // rejectReason 只在驳回落库；其余情况传 null，同一条语句顺带把旧驳回原因清掉
+        int affected = contentMapper.transitionStatus(content.getId(), current, target,
+                "REJECTED".equals(target) ? rejectReason : null);
 
-        contentMapper.updateById(update);
-
-        if (!"REJECTED".equals(target)) {
-            // updateById 会忽略 null 字段，所以「清空驳回原因」必须走显式 UPDATE
-            contentMapper.clearRejectReason(content.getId());
+        if (affected == 0) {
+            throw new BizException(ResponseCodeEnum.CONTENT_STATUS_ILLEGAL.getErrorCode(),
+                    "内容状态已被其他人改变，请刷新后重试");
         }
 
         cacheService.evict(content.getId());
@@ -408,17 +425,49 @@ public class ContentServiceImpl implements ContentService {
                 .collect(Collectors.toMap(ContentCategoryDO::getId, ContentCategoryDO::getName, (a, b) -> a));
     }
 
-    /** 试读片段：截断正文，正文为空时退回摘要 */
+    /**
+     * 试读片段：截断正文，正文为空时退回摘要。
+     *
+     * <p><b>必须先剥掉所有链接再截断。</b>试读是给「没有订阅权限」的人看的，
+     * 如果正文里写了 {@code [下载全文](/api/files/2026/09/xxx.pdf)}，
+     * 直接截断会把完整 URL 一起送出去——附件是公开路径，拿到 URL 就等于拿到文件，
+     * 订阅权限被整个绕过。同理还有 Markdown 图片、{@code @file:} 附件指令和裸链接。</p>
+     */
     private String buildPreview(ContentDO content) {
         String source = StringUtils.isNotBlank(content.getBody()) ? content.getBody() : content.getSummary();
         if (StringUtils.isBlank(source)) {
             return null;
         }
-        String plain = source.replaceAll("[#*`>\\-]", "").trim();
+
+        String plain = stripLinksAndMarkup(source);
         if (plain.length() <= ContentAccessService.PREVIEW_LENGTH) {
             return plain;
         }
         return plain.substring(0, ContentAccessService.PREVIEW_LENGTH) + "……";
+    }
+
+    /**
+     * 去掉一切可能被用来直接取文件的写法，再退化成纯文本。
+     *
+     * <p>顺序很重要：先删带 URL 的完整语法，再处理剩下的标记字符，
+     * 否则删标记会破坏 Markdown 结构、让 URL 变成裸露文本留在片段里。</p>
+     */
+    private String stripLinksAndMarkup(String source) {
+        String text = source;
+        // 图片：整段删掉（图片本身就是附件，且 alt 文本对试读没价值）
+        text = text.replaceAll("!\\[[^\\]]*]\\([^)]*\\)", " ");
+        // 链接：保留可读文字，丢掉 URL —— 关键是 URL 不能出现在试读里
+        text = text.replaceAll("\\[([^\\]]*)]\\([^)]*\\)", "$1");
+        // @file: 显示名 | 地址（项目的附件指令语法）
+        text = text.replaceAll("@file:[^\\n|]*\\|[^\\n]*", " ");
+        text = text.replaceAll("@(video|repo|api|file):[^\\n]*", " ");
+        // 裸 URL 与站内文件路径
+        text = text.replaceAll("https?://\\S+", " ");
+        text = text.replaceAll("/api/files/\\S+", " ");
+        // 剩下的 Markdown 标记
+        text = text.replaceAll("[#*`>\\-]", "");
+        // 压缩因为删除 URL 产生的连续空白
+        return text.replaceAll("\\s+", " ").trim();
     }
 
     private ContentListVO toListVO(ContentDO c, String categoryName) {

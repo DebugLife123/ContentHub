@@ -12,7 +12,15 @@
     </div>
 
     <div v-if="loading" class="empty-state">正在加载…</div>
-    <el-form v-else ref="formRef" :model="form" :rules="rules" label-position="top" class="edit-form">
+    <div v-else-if="loadError" class="empty-state" role="alert">
+      <p>{{ loadError }}</p>
+      <el-button @click="loadForm">重试</el-button>
+    </div>
+    <div v-else-if="['PENDING', 'PUBLISHED'].includes(currentStatus)" class="empty-state">
+      <p>当前内容不可编辑，请返回工作台先下架。</p>
+      <el-button @click="leaveEditor">返回工作台</el-button>
+    </div>
+    <el-form v-else ref="formRef" :model="form" :rules="rules" :disabled="saving" label-position="top" class="edit-form">
       <el-form-item label="标题" prop="title">
         <el-input v-model="form.title" placeholder="一句话说清这份内容是什么" maxlength="200" show-word-limit />
       </el-form-item>
@@ -57,12 +65,12 @@
             </div>
           </div>
           <div v-else class="cover-empty">
-            <el-button :loading="uploadingCover" @click="coverInput?.click()">
+            <el-button :loading="uploadingCover" :disabled="['PENDING', 'PUBLISHED'].includes(currentStatus)" @click="coverInput?.click()">
               {{ uploadingCover ? '上传中…' : '上传封面' }}
             </el-button>
             <span class="cover-hint">jpg / png / gif / webp，单张不超过 50MB</span>
           </div>
-          <el-input v-model="form.cover" class="cover-url" placeholder="也可以直接粘贴图片地址" />
+          <el-input v-model="form.cover" class="cover-url" :disabled="['PENDING', 'PUBLISHED'].includes(currentStatus)" placeholder="也可以直接粘贴图片地址" />
           <input ref="coverInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp"
                  hidden @change="onPickCover">
         </div>
@@ -80,7 +88,7 @@
         <el-button class="button button-dark" :loading="saving" @click="submit">
           {{ isEdit ? '保存修改' : '创建内容' }} <span>↗</span>
         </el-button>
-        <el-button @click="$router.push('/creator')">返回工作台</el-button>
+        <el-button @click="leaveEditor">返回工作台</el-button>
         <span v-if="error" class="error-text">{{ error }}</span>
         <span v-if="success" class="success-text">{{ success }}</span>
       </div>
@@ -89,9 +97,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createContent, getMyContent, updateContent } from '@/api/content'
 import { uploadFile } from '@/api/file'
@@ -106,7 +114,9 @@ const formRef = ref<FormInstance>()
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
+const loadError = ref('')
 const success = ref('')
+const initialSnapshot = ref('')
 const categories = ref<Category[]>([])
 
 // ---------------------------------------------------------------- 封面上传
@@ -177,9 +187,14 @@ const rules: FormRules = {
 }
 
 async function submit() {
+  if (saving.value || uploadingCover.value || loadError.value) return
+  if (['PENDING', 'PUBLISHED'].includes(currentStatus.value)) {
+    error.value = '请先下架内容后再编辑'
+    return
+  }
   if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
+  if (!valid || saving.value) return
 
   saving.value = true
   error.value = ''
@@ -194,7 +209,8 @@ async function submit() {
       return
     }
     success.value = isEdit.value ? '已保存' : '已创建'
-    router.push('/creator')
+    initialSnapshot.value = JSON.stringify(form)
+    await router.push('/creator')
   } catch (e) {
     const err = e as { response?: { data?: { message?: string } } }
     error.value = err.response?.data?.message || '保存失败，请稍后重试。'
@@ -203,12 +219,17 @@ async function submit() {
   }
 }
 
-onMounted(async () => {
+async function loadForm() {
+  loading.value = true
+  loadError.value = ''
   try {
     const res = await listCategories()
-    if (res.data.success) categories.value = res.data.data
+    if (!res.data.success) throw new Error(res.data.message || '分类加载失败')
+    categories.value = res.data.data
   } catch {
-    categories.value = []
+    loadError.value = '分类加载失败，请重试'
+    loading.value = false
+    return
   }
 
   if (isEdit.value && contentId.value !== null) {
@@ -229,14 +250,46 @@ onMounted(async () => {
         })
         currentStatus.value = data.status
       } else {
-        error.value = res.data.message || '内容不存在'
+        loadError.value = res.data.message || '内容不存在'
       }
     } catch {
-      error.value = '无法加载该内容（可能不是你的内容）'
+      loadError.value = '无法加载该内容（可能不是你的内容），请重试'
     }
   }
+  if (!loadError.value) initialSnapshot.value = JSON.stringify(form)
   loading.value = false
+}
+
+function isDirty() {
+  return !loading.value && !loadError.value && JSON.stringify(form) !== initialSnapshot.value
+}
+
+async function leaveEditor() {
+  await router.push('/creator')
+}
+
+onBeforeRouteLeave(async () => {
+  if (!isDirty()) return true
+  try {
+    await ElMessageBox.confirm('离开后未保存的修改会丢失，确定离开吗？', '未保存的修改', {
+      confirmButtonText: '离开', cancelButtonText: '继续编辑', type: 'warning',
+    })
+    return true
+  } catch {
+    return false
+  }
 })
+
+function beforeUnload(e: BeforeUnloadEvent) {
+  if (isDirty()) {
+    e.preventDefault()
+    e.returnValue = ''
+  }
+}
+
+onMounted(loadForm)
+onMounted(() => window.addEventListener('beforeunload', beforeUnload))
+onUnmounted(() => window.removeEventListener('beforeunload', beforeUnload))
 </script>
 
 <style scoped>

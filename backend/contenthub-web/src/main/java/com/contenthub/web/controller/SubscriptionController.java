@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,8 +34,9 @@ public class SubscriptionController {
 
     @PostMapping("/{planId}/pay/mock")
     @Operation(summary = "模拟支付并创建/续期订阅")
-    public Response<SubscriptionVO> payMock(@PathVariable Long planId) {
-        return subscriptionService.payMock(planId);
+    public Response<SubscriptionVO> payMock(@PathVariable Long planId,
+            @RequestHeader("Idempotency-Key") String idempotencyKey) {
+        return subscriptionService.payMock(planId, idempotencyKey);
     }
 
     @GetMapping("/my")
