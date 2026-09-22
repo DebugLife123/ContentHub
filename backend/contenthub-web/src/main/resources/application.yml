@@ -13,8 +13,12 @@ spring:
 jwt:
   # 签发人
   issuer: contenthub
-  # 秘钥
-  secret: uJDZw3DfufX2eA/1zgXnlO1mkPTRxuljP83kI3gaYpUgdqoSg4Ej/TvMsth6X/4avyAF8iifrdJitOb6mNtlSg==
+  # 签名密钥。刻意<b>不给默认值</b>：以前这里硬编码了一串密钥并提交进了公开仓库，
+  # 任何拿到仓库的人都能用它伪造任意用户（含 ADMIN）的 token。
+  # 现在必须在环境变量 JWT_SECRET 里提供（Base64 编码的 64 字节，HS512 要求）。
+  #   本地开发：application-dev.yml 里有一个仅用于开发的兜底值
+  #   容器部署：由 docker-compose.yml 注入，缺失时 compose 直接报错
+  secret: ${JWT_SECRET}
   # token 过期时间（单位：分钟） 24*60
   tokenExpireTime: 1440
   # token 请求头中的 key 值

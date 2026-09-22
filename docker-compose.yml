@@ -25,7 +25,8 @@ services:
     container_name: contenthub-mysql
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: "123456"
+      # 本地开发默认 123456；生产通过 .env 注入（服务器上的 override 文件也读同一个变量）
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-123456}"
       MYSQL_DATABASE: contenthub
       TZ: Asia/Shanghai
     ports:
@@ -38,7 +39,8 @@ services:
       # 首次初始化数据卷时自动执行，建表 + 写入演示数据
       - ./docs/database.sql:/docker-entrypoint-initdb.d/01-database.sql:ro
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p123456", "--silent"]
+      # 用容器内的环境变量而不是写死密码，改了 .env 不会让健康检查失真
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -77,6 +79,11 @@ services:
       # application-docker.yml：数据库与 Redis 走 compose 服务名
       SPRING_PROFILES_ACTIVE: docker
       TZ: Asia/Shanghai
+      # 数据库密码与 MySQL 容器保持同一个来源
+      SPRING_DATASOURCE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-123456}"
+      # 签名密钥必须显式提供：application.yml 里是 ${JWT_SECRET}，容器 profile 没有兜底值。
+      # 缺失时 compose 直接报错退出，避免线上悄悄用一个公开的默认密钥。
+      JWT_SECRET: "${JWT_SECRET:?请在 .env 中设置 JWT_SECRET（Base64 编码的 64 字节）}"
     # 刻意不发布端口：后端只允许经 Nginx 访问，
     # 避免绕过反向代理直接打 8084
     expose:

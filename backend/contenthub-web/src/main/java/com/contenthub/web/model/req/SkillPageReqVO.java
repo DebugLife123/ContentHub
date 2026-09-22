@@ -1,16 +1,19 @@
 package com.contenthub.web.model.req;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
 
-/** Skill 列表查询条件 */
+/**
+ * Skill 列表查询条件。
+ *
+ * <p>pageNum / pageSize 与校验来自 {@link PageReqVO}——这两个字段以前是各写各的，
+ * Skill 这边漏了校验，导致 pageNum 可以传负数、pageSize 可以传成任意大。</p>
+ */
 @Data
-public class SkillPageReqVO implements Serializable {
-
-    private Long pageNum = 1L;
-
-    private Long pageSize = 12L;
+@EqualsAndHashCode(callSuper = true)
+public class SkillPageReqVO extends PageReqVO implements Serializable {
 
     private Long categoryId;
 

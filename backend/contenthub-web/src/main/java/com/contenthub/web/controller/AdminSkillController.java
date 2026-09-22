@@ -1,5 +1,6 @@
 package com.contenthub.web.controller;
 
+import com.contenthub.common.aspect.ApiOperationLog;
 import com.contenthub.common.utils.PageResponse;
 import com.contenthub.common.utils.Response;
 import com.contenthub.web.model.req.SkillPageReqVO;
@@ -70,12 +71,14 @@ public class AdminSkillController {
 
     @PostMapping("/{id}/publish")
     @Operation(summary = "上架（草稿/已下架 -> 已上架）")
+    @ApiOperationLog(description = "上架 Skill")
     public Response<Void> publish(@PathVariable Long id) {
         return skillService.publish(id);
     }
 
     @PostMapping("/{id}/offline")
     @Operation(summary = "下架（已上架 -> 已下架）")
+    @ApiOperationLog(description = "下架 Skill")
     public Response<Void> offline(@PathVariable Long id) {
         return skillService.offline(id);
     }

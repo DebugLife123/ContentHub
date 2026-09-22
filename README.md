@@ -193,18 +193,21 @@ ContentHub/
 - **真实角色（Day 17）**：新增 `LoginUser implements UserDetails`，携带 `userId` 与 `role`。改造前 `UserDetailServiceImpl` 把 authorities 写死成 `ADMIN`，等于任何登录用户都是管理员；现在从 `users.role` 读取并映射为 `ROLE_*`。
 - **角色授权**：`WebSecurityConfig` 按「读公开、写按角色」编排，先匹配先生效。`RestAccessDeniedHandler` 原先只打日志、不写响应体（注释里写着「预留，后面引入多角色时会用到」），现在返回 403 + 业务错误码，前端才能区分「没登录」与「登录了但权限不够」。
 - **移除废弃 API**：`JwtAuthenticationSecurityConfig` 不再继承 `SecurityConfigurerAdapter` / 使用 `http.apply()`，改为显式暴露 `DaoAuthenticationProvider` 与 `JwtAuthenticationFilter` Bean，编译告警消失。
-- **统一 API 前缀**：`server.servlet.context-path: /api`，与计划表 19 的接口约定一致。**因此 API 文档地址变为 `http://127.0.0.1:8084/api/doc.html`。**
+- **统一 API 前缀**：`server.servlet.context-path: /api`，与计划表 19 的接口约定一致。**因此 API 文档地址变为 `http://127.0.0.1:8084/api/doc.html`（仅 `dev` profile 可用；容器环境关掉了 springdoc，并在 Nginx 上把 `doc.html` 直接挡成 404）。**
 - **VO/DTO 分层**：接口不再直接返回 `ContentDO`（原先把 `is_deleted`、正文全文都暴露给了列表页）。新增 `ContentListVO` / `ContentDetailVO` / `CategoryVO` / `UserInfoVO` 与带 `@NotBlank`/`@Size` 校验的 Req 对象。
 - **逻辑删除**：`is_deleted` 字段加上 `@TableLogic`，`deleteById` 自动变为 `UPDATE`，查询自动过滤。
 - **归属校验**：计划里「创作者只能改自己的内容」属于阶段 3 Day 22，但 Security 只按角色放行，不做归属校验就等于任何创作者都能改别人的内容，故提前落地（非 ADMIN 且非作者本人返回 `NOT_CONTENT_OWNER`）。
 - **前端登录态与守卫（Day 18）**：`stores/user.ts` 用 Pinia 管 token 与用户信息，`router/index.ts` 用 `meta.requiresAuth` / `meta.roles` 做守卫。守卫只是体验层——前端可被绕过，真正的权限仍在后端。
 - **清理**：删除遗留商城的 `Cart`/`Order`/`Product` 全部后端模块（DO/Mapper/Service/Controller）与前端 `pages/**`、遗留组件、`api/frontend/*`；`OrderProductVO` 被 MyBatis-Plus 误扫描的启动警告随之消失。
 
-### 阶段 0 遗留说明（已在本轮处理）
+### 阶段 0 遗留说明（已全部处理）
 
 - ~~`JwtAuthenticationSecurityConfig` 仍使用已废弃的 `SecurityConfigurerAdapter`~~ → 阶段 2 已改为显式 Bean 装配；
 - ~~旧商城模块未删除~~ → 阶段 1 已清理；
-- `GET /api/admin/redis/verify` 是阶段 0 的验收用临时接口，仍保留（受 ADMIN 角色保护），阶段 5 落地真实缓存业务后可删除。
+- ~~`GET /api/admin/redis/verify` 阶段 0 验收用临时接口~~ → 已删除；
+- ~~`POST /api/admin/test` 脚手架 hello 接口、`TestUser` 模型~~ → 已删除；
+- ~~`application-prod.yml` 里还是旧商城脚手架的内容（连的是 `springboot_mall` 库、端口 8080）~~ → 已删除；容器部署统一走 `docker` profile；
+- ~~`logback-mall.xml`~~ → 已随 `application-prod.yml` 一起删除（它只被那个文件引用）。
 
 ### 阶段 0 完成的技术栈对齐（保留备查）
 
@@ -352,8 +355,6 @@ PUBLISHED       --offline--> OFFLINE（前台立刻消失）
 | POST | `/api/admin/skill-categories` | ADMIN | 新增分类（同名已删除分类会被复活） |
 | PUT | `/api/admin/skill-categories/{id}` | ADMIN | 修改分类 |
 | DELETE | `/api/admin/skill-categories/{id}` | ADMIN | 删除分类（分类下有 Skill 时拒绝） |
-| POST | `/api/admin/test` | ADMIN | 脚手架自带的 hello 接口 |
-| GET | `/api/admin/redis/verify` | ADMIN | 阶段 0 验收用：写一个带 TTL 的 key 再读回 |
 
 ### Skill 商城
 
@@ -482,18 +483,18 @@ docker compose up -d        # 重新初始化
 
 ### Redis 连通性验收（阶段 0）
 
+阶段 0 原来有一个 `/api/admin/redis/verify` 临时接口用于验收，现已删除（脚手架残留）。
+Redis 是否真的通了，登录一次就能确认——token 会写进 Redis：
+
 ```powershell
-# 先登录拿 token，再用 token 访问验收接口（该接口需要 ADMIN 角色）
+# 先登录拿 token
 $login = Invoke-RestMethod http://127.0.0.1:8084/api/auth/login -Method Post `
   -Body '{"username":"admin","password":"123456"}' -ContentType 'application/json'
-Invoke-RestMethod http://127.0.0.1:8084/api/admin/redis/verify `
-  -Headers @{ Authorization = "Bearer $($login.data.token)" } | ConvertTo-Json
 
-# 直接在 Redis 中确认 key 存在且是明文
-docker exec contenthub-redis redis-cli get "contenthub:stage0:ping"
+# Redis 里应该能看到这条 token（key 形如 login:token:{token}，TTL 与 jwt.tokenExpireTime 一致）
+docker exec contenthub-redis redis-cli keys "login:token:*"
+docker exec contenthub-redis redis-cli ttl "login:token:$($login.data.token)"
 ```
-
-预期 `matched` 为 `true`，且 `redis-cli` 能读到明文的 `pong@...` 值。
 
 ### 登录态验收（阶段 2）
 
@@ -662,11 +663,17 @@ sudo ufw allow 8085/tcp
 
 要是希望直接用 80 端口，把 `docker-compose.yml` 里 frontend 的端口映射改成 `"80:80"` 即可。
 
-**上线前必须改掉的东西**（当前是本地学习用的默认值）：
+**上线前必须处理的东西**：
 
-- `application.yml` 的 `jwt.secret` —— 它公开在仓库里，任何人都能用它伪造 token，务必换成一个新的随机值；
-- MySQL 的 root 密码 `123456`（`docker-compose.yml` 与 `application-docker.yml`）；
-- 数据库与 Redis 不要暴露到公网（当前 compose 把 3308/6380 发布到了宿主，服务器上应删掉这两个 `ports`）。
+| 项 | 现状 | 怎么做 |
+|---|---|---|
+| JWT 签名密钥 | `application.yml` 里是 `${JWT_SECRET}`，**没有任何兜底值** | 在 `.env` 里设置 `JWT_SECRET`（Base64 编码的 64 字节）。缺失时 `docker compose` 直接报错退出，不会退化成用一个公开默认值。仅 `application-dev.yml` 有一个本地开发用的兜底值 |
+| MySQL root 密码 | compose 里默认 `123456`，可用 `MYSQL_ROOT_PASSWORD` 覆盖 | 在 `.env` 里改。注意它只在数据卷**首次初始化**时生效，已在跑的库要改密码得 `ALTER USER` 或重建数据卷 |
+| 数据库 / Redis 端口 | compose 默认把 3308 / 6380 发布到宿主机 | 生产用 `docker-compose.override.yml` 把这两个 `ports` 清掉（`ports: !reset []`），或直接删掉这两行 |
+| 演示账号密码 | 三个账号都是 `123456`，站点公网可访问时等于把管理后台敞开 | 改成强密码，或先关掉对外的端口转发 |
+
+`cp .env.example .env` 后填值即可，`.env` 已在 `.gitignore` 里。
+`docker-compose.override.yml` 也是 **不提交** 的：它放生产专属配置，靠 Compose 的 override 机制合并，仓库里的 `docker-compose.yml` 保持"本地学习用"的默认值。
 
 ### 日志与排障
 

@@ -1,5 +1,6 @@
 package com.contenthub.web.controller;
 
+import com.contenthub.common.aspect.ApiOperationLog;
 import com.contenthub.common.utils.PageResponse;
 import com.contenthub.common.utils.Response;
 import com.contenthub.web.model.req.ContentPageReqVO;
@@ -41,12 +42,15 @@ public class AdminContentController {
 
     @PostMapping("/{id}/approve")
     @Operation(summary = "审核通过（PENDING -> PUBLISHED）")
+    // 审核动作留痕：@ApiOperationLog 会把入参、出参与耗时打进日志，便于事后追溯是谁放行的
+    @ApiOperationLog(description = "审核通过内容")
     public Response<Void> approve(@PathVariable Long id) {
         return contentService.approve(id);
     }
 
     @PostMapping("/{id}/reject")
     @Operation(summary = "审核驳回（PENDING -> REJECTED，需填原因）")
+    @ApiOperationLog(description = "审核驳回内容")
     public Response<Void> reject(@PathVariable Long id, @RequestBody @Validated ReviewReqVO req) {
         return contentService.reject(id, req.getReason());
     }

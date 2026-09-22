@@ -1,5 +1,11 @@
 server:
   port: 8084
+
+# 本地开发专用的兜底密钥，让 dev-up.ps1 开箱即用。
+# 它只用于本机开发；容器部署走 docker profile，那里没有兜底值，必须显式提供 JWT_SECRET。
+jwt:
+  secret: ${JWT_SECRET:mcL/IpZmQ7ub4wOjw5FDyo9pl62MGbsQRnqujwpIBX4zox4WlidTsD7mekdNrDGMKbANFccgf2Xj+gQRNFue6Q==}
+
 spring:
   datasource:
     #  指定数据库驱动类
@@ -7,21 +13,16 @@ spring:
     # 数据库连接信息（ContentHub 专属容器 contenthub-mysql，见根目录 docker-compose.yml）
     url: jdbc:p6spy:mysql://127.0.0.1:3308/contenthub?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&useSSL=false&zeroDateTimeBehavior=convertToNull&allowPublicKeyRetrieval=true
     username: root
-    password: 123456
+    password: ${MYSQL_ROOT_PASSWORD:123456}
     hikari: # 数据库连接池使用 Hikari
       minimum-idle: 5 # 连接池中最小空闲连接数
       maximum-pool-size: 20 # 连接池中允许的最大连接数
       auto-commit: true # 是否自动提交事务
       idle-timeout: 30000 # 连接在连接池中闲置的最长时间，超过这个时间会被释放。
-      pool-name: Weblog-HikariCP # 自定义连接池的名字
+      pool-name: ContentHub-HikariCP # 自定义连接池的名字
       max-lifetime: 1800000 # 连接在连接池中的最大存活时间，超过这个时间会被强制关闭。
       connection-timeout: 30000 # 连接的超时时间
       connection-test-query: SELECT 1 # 用于测试连接是否可用的SQL查询
-
-  security:
-    user:
-      name: admin
-      password: 123456
 
   # Redis（Spring Boot 3 起配置前缀由 spring.redis 变为 spring.data.redis）
   # ContentHub 专属容器 contenthub-redis，见根目录 docker-compose.yml

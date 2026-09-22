@@ -9,7 +9,9 @@ spring:
     # 主机名用 compose 的服务名 mysql，不是 127.0.0.1 —— 容器里的 localhost 是容器自己
     url: jdbc:mysql://mysql:3306/contenthub?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&useSSL=false&zeroDateTimeBehavior=convertToNull&allowPublicKeyRetrieval=true
     username: root
-    password: "123456"
+    # 兜底值只服务本地 compose；生产由 .env 注入 SPRING_DATASOURCE_PASSWORD
+    # （Spring 的宽松绑定会把它映射到 spring.datasource.password，优先级高于本文件）
+    password: "${SPRING_DATASOURCE_PASSWORD:123456}"
     hikari:
       minimum-idle: 5
       maximum-pool-size: 20
@@ -40,3 +42,9 @@ springdoc:
     enabled: false
   swagger-ui:
     enabled: false
+
+# knife4j 的 doc.html 是打包在 starter 里的静态页，关掉 springdoc 并不会让它消失：
+# 页面本身仍返回 200，只是打开后取不到 /v3/api-docs 而显示空白。
+# 关掉 knife4j 增强 UI，让这个「打得开但没内容」的页面直接 404。
+knife4j:
+  enable: false

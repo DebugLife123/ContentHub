@@ -2,9 +2,11 @@ package com.contenthub.jwt.handler;
 
 import com.contenthub.common.enums.ResponseCodeEnum;
 import com.contenthub.common.utils.Response;
+import com.contenthub.jwt.exception.LoginRequestFormatException;
 import com.contenthub.jwt.exception.UsernameOrPasswordNullException;
 import com.contenthub.jwt.utils.ResultUtil;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.core.AuthenticationException;
@@ -30,6 +32,13 @@ public class RestAuthenticationFailureHandler implements AuthenticationFailureHa
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response,
                                         AuthenticationException exception) throws IOException, ServletException {
         log.warn("登录失败：{}", exception.getMessage());
+
+        if (exception instanceof LoginRequestFormatException) {
+            // 请求体不是合法 JSON，是协议层的问题，和其余接口保持一致返回 400
+            ResultUtil.fail(response, HttpStatus.BAD_REQUEST.value(),
+                    Response.fail(exception.getMessage()));
+            return;
+        }
 
         if (exception instanceof UsernameOrPasswordNullException) {
             ResultUtil.fail(response, Response.fail(exception.getMessage()));

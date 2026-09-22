@@ -1,21 +1,18 @@
 package com.contenthub.web.model.req;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.io.Serializable;
 
-/** 内容分页查询条件（计划表 19：GET /api/contents/page） */
+/**
+ * 内容分页查询条件（计划表 19：GET /api/contents/page）。
+ *
+ * <p>pageNum / pageSize 与校验来自 {@link PageReqVO}。</p>
+ */
 @Data
-public class ContentPageReqVO implements Serializable {
-
-    @Min(value = 1, message = "页码从 1 开始")
-    private Long pageNum = 1L;
-
-    @Min(value = 1, message = "每页至少 1 条")
-    @Max(value = 100, message = "每页最多 100 条")
-    private Long pageSize = 9L;
+@EqualsAndHashCode(callSuper = true)
+public class ContentPageReqVO extends PageReqVO implements Serializable {
 
     /** 按分类筛选 */
     private Long categoryId;

@@ -1,0 +1,53 @@
+# ============================================================
+# 统一换行符
+#
+# 不加这个文件时，Windows 上每次 git add 都会刷一屏
+# "LF will be replaced by CRLF" 警告，而且不同机器提交的
+# 换行不一致，diff 里会混进整文件的空白改动。
+#
+# 这里统一成 LF：仓库里是 LF，工作区也是 LF。
+# 本项目在 Windows 上开发、在 Linux 容器里构建，LF 两边都不会出问题。
+#
+# 注意：scripts/*.ps1 必须同时保持「UTF-8 带 BOM」——git 不会动 BOM，
+# 但换行被改掉过的话，Windows PowerShell 5.1 仍能正常解析。
+# ============================================================
+* text=auto eol=lf
+
+# ---- 文本类，显式声明，避免被当成二进制 ----
+*.java      text
+*.kt        text
+*.xml       text
+*.yml       text
+*.yaml      text
+*.properties text
+*.sql       text
+*.ts        text
+*.vue       text
+*.js        text
+*.json      text
+*.css       text
+*.html      text
+*.md        text
+*.ps1       text
+*.sh        text
+*.conf      text
+Dockerfile  text
+.gitignore  text
+.env.example text
+
+# ---- 二进制，禁止任何换行转换 ----
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.webp      binary
+*.svg       text
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.jar       binary
+*.zip       binary
+*.gz        binary
+*.docx      binary
+*.pdf       binary
