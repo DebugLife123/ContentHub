@@ -156,4 +156,23 @@
             <url>https://maven.aliyun.com/repository/public</url>
         </repository>
     </repositories>
+
+    <!--
+        插件仓库也必须显式声明，否则只有 <repositories> 生效、插件仍去 Maven Central 解析。
+
+        踩过的坑：容器里构建时报
+          Failed to read artifact descriptor for com.fasterxml.jackson.core:jackson-databind:jar:2.14.2
+          -> spring-boot-maven-plugin 的依赖无法解析
+        原因是本地仓库里的构件是用阿里云下载的（_remote.repositories 记录来源为 aliyun），
+        而插件解析上下文里只有 central，Maven 就认为这份缓存"来源不可用"、要重新联网校验；
+        服务器访问 Maven Central 不稳定，repackage 这一步直接失败。
+        把 aliyun 同时声明为插件仓库后，来源匹配，缓存直接复用，构建不再依赖 Central。
+    -->
+    <pluginRepositories>
+        <pluginRepository>
+            <id>aliyunmaven</id>
+            <name>aliyun</name>
+            <url>https://maven.aliyun.com/repository/public</url>
+        </pluginRepository>
+    </pluginRepositories>
 </project>
