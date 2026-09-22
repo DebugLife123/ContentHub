@@ -25,6 +25,7 @@ import SkillEdit from '../views/admin/SkillEdit.vue'
 import SkillList from '../views/skill/SkillList.vue'
 import SkillDetail from '../views/skill/SkillDetail.vue'
 import CreatorApplications from '../views/admin/CreatorApplications.vue'
+import SkillComments from '../views/admin/SkillComments.vue'
 import CreatorPublic from '../views/CreatorPublic.vue'
 
 declare module 'vue-router' {
@@ -99,6 +100,11 @@ const routes: RouteRecordRaw[] = [
     path: '/admin/creator-applications',
     component: CreatorApplications,
     meta: { title: '创作者申请', requiresAuth: true, roles: ['ADMIN'] },
+  },
+  {
+    path: '/admin/skill-comments',
+    component: SkillComments,
+    meta: { title: 'Skill 评论管理', requiresAuth: true, roles: ['ADMIN'] },
   },
   {
     path: '/admin/users',

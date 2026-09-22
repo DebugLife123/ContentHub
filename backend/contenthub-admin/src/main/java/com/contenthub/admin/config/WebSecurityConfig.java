@@ -90,6 +90,10 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/files/upload").authenticated()
                         // Skill 安装计数：必须登录，写在下面 GET /skills/** 放行之前
                         .requestMatchers(HttpMethod.POST, "/skills/*/install").authenticated()
+                        // Skill 评论：发评论要登录，删评论本人或管理员（归属在 Service 里校验）
+                        .requestMatchers(HttpMethod.POST, "/skills/*/comments").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/skill-comments/*").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/skill-comments/mine").authenticated()
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/subscriptions/**").authenticated()
 

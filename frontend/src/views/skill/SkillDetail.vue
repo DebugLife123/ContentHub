@@ -41,7 +41,9 @@
       <!-- 详情 / 评论 -->
       <div class="tabs">
         <span :class="{ active: tab === 'detail' }" @click="tab = 'detail'">详情</span>
-        <span :class="{ active: tab === 'comments' }" @click="tab = 'comments'">评论</span>
+        <span :class="{ active: tab === 'comments' }" @click="switchToComments">
+          评论 <small v-if="commentTotal">{{ commentTotal }}</small>
+        </span>
       </div>
 
       <div v-if="tab === 'detail'" class="detail-layout">
@@ -155,13 +157,47 @@
         </aside>
       </div>
 
-      <!-- 评论：Skill 还没有评论后端，先只放空状态，不放假数据 -->
+      <!-- 评论 -->
       <div v-else class="comments-pane">
-        <div class="empty-state">还没有评论。</div>
-        <p class="aside-note">
-          Skill 的评论功能尚未开放。内容库的评论走的是绑在内容上的评论表，
-          Skill 要用得另建一套，需要时再补。
-        </p>
+        <div class="comment-form">
+          <el-input
+            v-model="newComment"
+            type="textarea"
+            :rows="3"
+            maxlength="1000"
+            show-word-limit
+            :placeholder="userStore.isLoggedIn ? '写下你的使用体验…' : '登录后即可评论'"
+          />
+          <el-button class="button button-dark" :loading="posting" @click="submitComment">
+            {{ userStore.isLoggedIn ? '发表评论' : '登录后评论' }} <span>↗</span>
+          </el-button>
+        </div>
+
+        <div v-if="!comments.length" class="empty-state">还没有评论，来做第一个。</div>
+        <ul v-else class="comment-list">
+          <li v-for="c in comments" :key="c.id">
+            <span class="comment-avatar">{{ (c.username || 'U').slice(0, 1) }}</span>
+            <div class="comment-body">
+              <div class="comment-head">
+                <strong>{{ c.username || ('用户 #' + c.userId) }}</strong>
+                <span>{{ c.createTime }}</span>
+              </div>
+              <p>{{ c.body }}</p>
+              <a v-if="c.canDelete" class="comment-del" @click.prevent="removeComment(c)">删除</a>
+            </div>
+          </li>
+        </ul>
+
+        <div v-if="commentTotal > comments.length" class="pager">
+          <el-pagination
+            layout="prev, pager, next"
+            :total="commentTotal"
+            :current-page="commentPage"
+            :page-size="commentPageSize"
+            background
+            @current-change="handleCommentPage"
+          />
+        </div>
       </div>
     </template>
   </div>
@@ -169,12 +205,21 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { formatDate, formatStars, getSkill, installSkill } from '../../api/skill'
+import {
+  createSkillComment,
+  deleteSkillComment,
+  listSkillComments,
+  type SkillComment,
+} from '../../api/skillComment'
+import { useUserStore } from '@/stores/user'
 import type { SkillDetail } from '../../api/types'
 
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
 
 const loading = ref(true)
 const error = ref('')
@@ -269,6 +314,83 @@ async function copyCommand() {
     ElMessage.success('已复制')
   } catch {
     ElMessage.warning('浏览器未授予剪贴板权限，请手动选中复制')
+  }
+}
+
+// ------------------------------------------------------------------ 评论
+
+const comments = ref<SkillComment[]>([])
+const commentTotal = ref(0)
+const commentPage = ref(1)
+const commentPageSize = ref(5)
+const newComment = ref('')
+const posting = ref(false)
+
+/** 首次切到评论页签才去加载，避免进详情页就多打一个请求 */
+const commentsLoaded = ref(false)
+
+function switchToComments() {
+  tab.value = 'comments'
+  if (!commentsLoaded.value) loadComments()
+}
+
+async function loadComments() {
+  try {
+    const res = await listSkillComments(skill.value.id, commentPage.value, commentPageSize.value)
+    if (res.data.success) {
+      comments.value = res.data.data.list
+      commentTotal.value = res.data.data.total
+      commentsLoaded.value = true
+    }
+  } catch {
+    comments.value = []
+    commentTotal.value = 0
+  }
+}
+
+function handleCommentPage(p: number) {
+  commentPage.value = p
+  loadComments()
+}
+
+async function submitComment() {
+  if (!userStore.isLoggedIn) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
+  if (!newComment.value.trim()) {
+    ElMessage.warning('评论内容不能为空')
+    return
+  }
+  posting.value = true
+  try {
+    const res = await createSkillComment(skill.value.id, newComment.value.trim())
+    if (res.data.success) {
+      newComment.value = ''
+      commentPage.value = 1
+      await loadComments()
+      ElMessage.success('评论已发表')
+    } else {
+      ElMessage.error(res.data.message || '发表失败')
+    }
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '发表失败')
+  } finally {
+    posting.value = false
+  }
+}
+
+async function removeComment(c: SkillComment) {
+  try {
+    const res = await deleteSkillComment(c.id)
+    if (res.data.success) {
+      ElMessage.success('已删除')
+      await loadComments()
+    } else {
+      ElMessage.error(res.data.message || '删除失败')
+    }
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '删除失败')
   }
 }
 
@@ -675,6 +797,25 @@ onMounted(load)
   margin: 0;
   font-size: 14px;
   line-height: 1.8;
+}
+.comment-form {
+  margin-bottom: 26px;
+}
+.comment-form .el-button {
+  margin-top: 12px;
+}
+.comment-del {
+  display: inline-block;
+  margin-top: 8px;
+  font: 10px 'DM Mono', monospace;
+  color: #c54a32;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.pager {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 20px;
 }
 
 @media (max-width: 900px) {
