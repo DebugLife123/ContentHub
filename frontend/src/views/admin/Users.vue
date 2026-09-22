@@ -1,11 +1,13 @@
 <template>
-  <div class="admin-page content-width">
-    <div class="section-heading">
-      <div><p class="eyebrow">ADMIN / USERS</p><h2>用户管理<br><em>启用与禁用</em></h2></div>
-      <p class="heading-aside">仅管理员可见。<br>禁用后该账号无法登录（已登录的 token 在过期前仍有效）。</p>
-    </div>
+  <div>
+    <AdminPageHeader
+      eyebrow="ADMIN / USERS"
+      title="用户管理"
+      accent="启用与禁用"
+      description="仅管理员可见。禁用后该账号无法登录（已登录的 token 在过期前仍有效）。"
+    />
 
-    <div class="toolbar">
+    <div class="admin-toolbar">
       <el-input v-model="keyword" placeholder="搜索用户名或昵称" clearable style="width: 220px"
                 @keyup.enter="applyFilter" @clear="applyFilter" />
       <el-select v-model="role" placeholder="全部角色" clearable style="width: 150px" @change="applyFilter">
@@ -14,37 +16,35 @@
         <el-option label="管理员" value="ADMIN" />
       </el-select>
       <el-button class="button button-dark" @click="applyFilter">筛选</el-button>
-      <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
+      <span v-if="message" class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
     </div>
 
-    <div v-if="loading" class="empty-state">正在加载…</div>
+    <p v-if="loading" class="admin-loading">LOADING…</p>
     <table v-else class="admin-table">
       <thead>
         <tr><th>ID</th><th>用户名</th><th>昵称</th><th>角色</th><th>内容数</th><th>状态</th><th>操作</th></tr>
       </thead>
       <tbody>
         <tr v-for="u in items" :key="u.id">
-          <td>{{ u.id }}</td>
-          <td class="cell-name">{{ u.username }}</td>
-          <td>{{ u.nickname || '—' }}</td>
+          <td class="admin-cell-mono">{{ u.id }}</td>
+          <td class="admin-cell-strong">{{ u.username }}</td>
+          <td class="admin-cell-muted">{{ u.nickname || '—' }}</td>
           <td>
-            <span class="role-tag" :class="`role-${u.role.toLowerCase()}`">{{ roleLabel(u.role) }}</span>
+            <span class="admin-tag" :class="roleClass(u.role)">{{ roleLabel(u.role) }}</span>
           </td>
-          <td>{{ u.contentCount ?? 0 }}</td>
+          <td class="admin-cell-mono">{{ u.contentCount ?? 0 }}</td>
           <td>
-            <span class="status-tag" :class="u.status === 'ENABLED' ? 'status-on' : 'status-off'">
-              {{ u.status === 'ENABLED' ? '正常' : '已禁用' }}
-            </span>
+            <span class="admin-tag" :class="statusClass(u.status)">{{ u.status === 'ENABLED' ? '正常' : '已禁用' }}</span>
           </td>
-          <td class="cell-actions">
-            <a v-if="u.status === 'ENABLED'" class="danger" @click.prevent="setStatus(u, 'DISABLED')">禁用</a>
+          <td class="admin-actions">
+            <a v-if="u.status === 'ENABLED'" class="is-danger" @click.prevent="setStatus(u, 'DISABLED')">禁用</a>
             <a v-else @click.prevent="setStatus(u, 'ENABLED')">启用</a>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <div class="pager">
+    <div class="admin-pager">
       <el-pagination layout="prev, pager, next, total" :total="total" :current-page="pageNum"
                      :page-size="pageSize" background @current-change="handlePageChange" />
     </div>
@@ -56,6 +56,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { pageAdminUsers, updateUserStatus } from '@/api/admin'
 import type { AdminUser } from '@/api/types'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 const loading = ref(true)
 const items = ref<AdminUser[]>([])
@@ -70,6 +71,25 @@ const messageType = ref<'success' | 'error'>('success')
 const ROLE_LABELS: Record<string, string> = { USER: '普通用户', CREATOR: '创作者', ADMIN: '管理员' }
 function roleLabel(r: string) {
   return ROLE_LABELS[r] ?? r
+}
+
+/** 角色 → admin-tag 变体（在 admin-system.scss 里统一定义） */
+const ROLE_TAG_CLASS: Record<string, string> = {
+  ADMIN: 'is-warn',
+  CREATOR: 'is-on',
+  USER: '',
+}
+function roleClass(r: string) {
+  return ROLE_TAG_CLASS[r] ?? ''
+}
+
+/** 状态 → admin-tag 变体 */
+const STATUS_TAG_CLASS: Record<string, string> = {
+  ENABLED: 'is-on',
+  DISABLED: 'is-off',
+}
+function statusClass(s: string) {
+  return STATUS_TAG_CLASS[s] ?? ''
 }
 
 function flash(text: string, type: 'success' | 'error' = 'success') {
@@ -134,25 +154,3 @@ async function setStatus(u: AdminUser, status: 'ENABLED' | 'DISABLED') {
 
 onMounted(load)
 </script>
-
-<style scoped>
-.admin-page { padding: 60px 0 30px; }
-.toolbar { display: flex; align-items: center; gap: 12px; padding: 20px 0 8px; flex-wrap: wrap; }
-.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-.admin-table th {
-  text-align: left; font: 10px 'DM Mono', monospace; color: var(--muted);
-  padding: 10px 8px; border-bottom: 1px solid var(--line);
-}
-.admin-table td { padding: 13px 8px; border-bottom: 1px solid var(--line); }
-.cell-name { font-weight: 600; }
-.cell-actions a { margin-right: 12px; cursor: pointer; text-decoration: underline; }
-.cell-actions a.danger { color: #c54a32; }
-.status-tag, .role-tag { font: 10px 'DM Mono', monospace; padding: 2px 7px; border: 1px solid var(--line); }
-.status-on { color: #68863d; border-color: #68863d; }
-.status-off { color: #c54a32; border-color: #c54a32; }
-.role-admin { color: #c07a1f; border-color: #c07a1f; }
-.role-creator { color: #68863d; border-color: #68863d; }
-.role-user { color: var(--muted); }
-.pager { display: flex; justify-content: flex-end; padding-top: 22px; }
-.success-text { color: #68863d; font-size: 12px; }
-</style>

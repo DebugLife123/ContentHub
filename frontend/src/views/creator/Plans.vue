@@ -14,7 +14,7 @@
     </div>
 
     <div v-if="loading" class="empty-state">正在加载…</div>
-    <table v-else class="admin-table">
+    <table v-else class="plans-table">
       <thead>
         <tr>
           <th>名称</th><th>价格</th><th>周期</th><th>状态</th><th>订阅人数</th><th>操作</th>
@@ -188,12 +188,14 @@ onMounted(load)
 <style scoped>
 .plans-page { padding: 60px 0 30px; }
 .toolbar { display: flex; align-items: center; gap: 18px; padding: 20px 0 8px; }
-.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-.admin-table th {
+/* 刻意不叫 admin-table：管理端有同名全局类（styles/admin-system.scss），
+   用独立类名避免创作者端被管理端样式意外影响 */
+.plans-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.plans-table th {
   text-align: left; font: 10px 'DM Mono', monospace; color: var(--muted);
   padding: 10px 8px; border-bottom: 1px solid var(--line);
 }
-.admin-table td { padding: 13px 8px; border-bottom: 1px solid var(--line); }
+.plans-table td { padding: 13px 8px; border-bottom: 1px solid var(--line); }
 .cell-name { font-weight: 600; }
 .cell-name small { display: block; margin-top: 4px; font-weight: 400; color: var(--muted); }
 .cell-actions a { margin-right: 12px; cursor: pointer; text-decoration: underline; }

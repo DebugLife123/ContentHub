@@ -7,6 +7,7 @@ import App from './App.vue'
 import router from './router'
 import './styles/contenthub.css'
 import './styles/article-system.scss'
+import './styles/admin-system.scss'
 
 const app = createApp(App)
 

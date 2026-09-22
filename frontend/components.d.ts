@@ -7,6 +7,9 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    AdminBoot: typeof import('./src/components/admin/AdminBoot.vue')['default']
+    AdminLayout: typeof import('./src/components/admin/AdminLayout.vue')['default']
+    AdminPageHeader: typeof import('./src/components/admin/AdminPageHeader.vue')['default']
     AppHeader: typeof import('./src/components/AppHeader.vue')['default']
     ArticleBody: typeof import('./src/components/article/ArticleBody.vue')['default']
     ArticleComments: typeof import('./src/components/article/ArticleComments.vue')['default']

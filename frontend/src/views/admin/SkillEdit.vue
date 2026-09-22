@@ -1,22 +1,17 @@
 <template>
-  <div class="edit-page content-width">
-    <RouterLink to="/admin/skills" class="back-link">← 返回 Skill 商城管理</RouterLink>
+  <div>
+    <AdminPageHeader
+      eyebrow="ADMIN / SKILL"
+      :title="isEdit ? '编辑 Skill' : '新增 Skill'"
+      :accent="isEdit ? '修改后前台会同步' : '新建后默认为草稿'"
+      :description="isEdit ? '当前状态：' + statusLabel + '。上架 / 下架请在列表页操作。' : '保存后状态为「草稿」，需在列表页上架才会出现在前台。'"
+    >
+      <template #actions>
+        <RouterLink to="/admin/skills" class="back-link">← 返回 Skill 商城管理</RouterLink>
+      </template>
+    </AdminPageHeader>
 
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">ADMIN / SKILL</p>
-        <h2>{{ isEdit ? '编辑 Skill' : '新增 Skill' }}<br /><em>{{ isEdit ? '修改后前台会同步' : '新建后默认为草稿' }}</em></h2>
-      </div>
-      <p class="heading-aside">
-        <template v-if="isEdit">
-          当前状态：<strong>{{ statusLabel }}</strong><br />
-          上架 / 下架请在列表页操作。
-        </template>
-        <template v-else>保存后状态为「草稿」，需在列表页上架才会出现在前台。</template>
-      </p>
-    </div>
-
-    <div v-if="loading" class="empty-state">正在加载…</div>
+    <p v-if="loading" class="admin-loading">LOADING…</p>
 
     <el-form v-else ref="formRef" :model="form" :rules="rules" label-position="top" class="skill-form">
       <h3 class="form-section">基本信息</h3>
@@ -143,7 +138,7 @@
           {{ isEdit ? '保存修改' : '创建 Skill' }} <span>↗</span>
         </el-button>
         <el-button @click="$router.push('/admin/skills')">返回列表</el-button>
-        <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
+        <span v-if="message" class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
       </div>
     </el-form>
   </div>
@@ -160,6 +155,7 @@ import {
   updateSkill,
 } from '@/api/skill'
 import type { SkillCategory, SkillPayload, SkillStatus } from '@/api/types'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -348,9 +344,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.edit-page {
-  padding: 34px 0 40px;
-}
+/* 通用样式（页头 / 加载态 / 提示）统一在 styles/admin-system.scss，
+   这里只保留本页特有的返回链接与表单布局。 */
 .back-link {
   font: 11px 'DM Mono', monospace;
   color: var(--muted);
@@ -411,10 +406,6 @@ onMounted(async () => {
   margin-top: 34px;
   padding-top: 24px;
   border-top: 1px solid var(--line);
-}
-.success-text {
-  color: #68863d;
-  font-size: 12px;
 }
 
 @media (max-width: 800px) {

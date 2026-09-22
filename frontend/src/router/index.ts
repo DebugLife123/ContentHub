@@ -21,6 +21,8 @@ import ContentReview from '../views/admin/ContentReview.vue'
 import AdminUsers from '../views/admin/Users.vue'
 import AdminComments from '../views/admin/Comments.vue'
 import AdminPlans from '../views/admin/Plans.vue'
+import AdminOverview from '../views/admin/Overview.vue'
+import AdminLayout from '../components/admin/AdminLayout.vue'
 import SkillManage from '../views/admin/SkillManage.vue'
 import SkillEdit from '../views/admin/SkillEdit.vue'
 import SkillList from '../views/skill/SkillList.vue'
@@ -36,6 +38,8 @@ declare module 'vue-router' {
     requiresAuth?: boolean
     /** 允许访问的角色，未设置表示登录即可 */
     roles?: Role[]
+    /** 整屏布局：'admin' 时交给管理后台外壳接管，不套站点头部与页脚 */
+    layout?: 'admin'
   }
 }
 
@@ -96,58 +100,26 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '编辑内容', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
 
-  // ---------- 管理员（阶段 6：三种角色看到不同后台功能） ----------
+  // ---------- 管理后台（阶段 6 / 阶段 8：独立整屏控制台） ----------
+  // 外层 AdminLayout 提供墨色侧边栏 + 顶栏的整屏外壳，子路由只换内容区；
+  // 因此这里路径与以前完全一致（/admin/contents 等），已有链接无需改动。
   {
-    path: '/admin/contents',
-    component: ContentReview,
-    meta: { title: '内容审核', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/creator-applications',
-    component: CreatorApplications,
-    meta: { title: '创作者申请', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/skill-comments',
-    component: SkillComments,
-    meta: { title: 'Skill 评论管理', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/users',
-    component: AdminUsers,
-    meta: { title: '用户管理', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/comments',
-    component: AdminComments,
-    meta: { title: '评论管理', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/categories',
-    component: CategoryManage,
-    meta: { title: '分类管理', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/plans',
-    component: AdminPlans,
-    meta: { title: '套餐管理', requiresAuth: true, roles: ['ADMIN'] },
-  },
-
-  // ---------- 管理员：Skill 商城独立面板 ----------
-  {
-    path: '/admin/skills',
-    component: SkillManage,
-    meta: { title: 'Skill 商城管理', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/skills/new',
-    component: SkillEdit,
-    meta: { title: '新增 Skill', requiresAuth: true, roles: ['ADMIN'] },
-  },
-  {
-    path: '/admin/skills/:id/edit',
-    component: SkillEdit,
-    meta: { title: '编辑 Skill', requiresAuth: true, roles: ['ADMIN'] },
+    path: '/admin',
+    component: AdminLayout,
+    meta: { title: '管理后台', layout: 'admin', requiresAuth: true, roles: ['ADMIN'] },
+    children: [
+      { path: '', component: AdminOverview, meta: { title: '控制台概览' } },
+      { path: 'contents', component: ContentReview, meta: { title: '内容审核' } },
+      { path: 'creator-applications', component: CreatorApplications, meta: { title: '创作者申请' } },
+      { path: 'comments', component: AdminComments, meta: { title: '评论管理' } },
+      { path: 'skill-comments', component: SkillComments, meta: { title: 'Skill 评论管理' } },
+      { path: 'skills', component: SkillManage, meta: { title: 'Skill 商城管理' } },
+      { path: 'skills/new', component: SkillEdit, meta: { title: '新增 Skill' } },
+      { path: 'skills/:id/edit', component: SkillEdit, meta: { title: '编辑 Skill' } },
+      { path: 'users', component: AdminUsers, meta: { title: '用户管理' } },
+      { path: 'categories', component: CategoryManage, meta: { title: '分类管理' } },
+      { path: 'plans', component: AdminPlans, meta: { title: '套餐管理' } },
+    ],
   },
 
   { path: '/:pathMatch(.*)*', redirect: '/' },

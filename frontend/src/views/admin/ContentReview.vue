@@ -1,43 +1,50 @@
 <template>
-  <div class="review-page content-width">
-    <div class="section-heading">
-      <div><p class="eyebrow">ADMIN / CONTENT REVIEW</p><h2>内容审核<br><em>通过或驳回</em></h2></div>
-      <p class="heading-aside">
-        仅管理员可见。<br>只有待审核的内容才能通过或驳回。
-      </p>
-    </div>
+  <div>
+    <AdminPageHeader
+      eyebrow="ADMIN / CONTENT REVIEW"
+      title="内容审核"
+      accent="通过或驳回"
+      description="仅管理员可见。只有待审核的内容才能通过或驳回；点「查看」可按读者端的排版预览正文。"
+    />
 
-    <div class="toolbar">
+    <div class="admin-toolbar">
       <el-select v-model="status" placeholder="全部状态" clearable size="default" style="width: 160px" @change="applyFilter">
         <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
       </el-select>
       <el-input v-model="keyword" placeholder="搜索标题" clearable style="width: 220px"
                 @keyup.enter="applyFilter" @clear="applyFilter" />
       <el-button class="button button-dark" @click="applyFilter">筛选</el-button>
-      <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
+      <span v-if="message" class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
     </div>
 
-    <div v-if="loading" class="empty-state">正在加载…</div>
-    <div v-else-if="!items.length" class="empty-state">没有符合条件的内容。</div>
-    <table v-else class="review-table">
+    <p v-if="loading" class="admin-loading">LOADING…</p>
+    <div v-else-if="!items.length" class="admin-empty">
+      <span class="admin-empty-mark">···</span>
+      <p>没有符合条件的内容。</p>
+    </div>
+    <table v-else class="admin-table">
       <thead>
         <tr><th>标题</th><th>作者</th><th>分类</th><th>访问</th><th>状态</th><th>操作</th></tr>
       </thead>
       <tbody>
         <tr v-for="item in items" :key="item.id">
-          <td class="cell-title">{{ item.title }}</td>
-          <td>#{{ item.creatorId }}</td>
-          <td>{{ item.categoryName || '—' }}</td>
-          <td>{{ item.accessType === 'FREE' ? '免费' : '订阅' }}</td>
           <td>
-            <span class="status-tag" :class="`status-${item.status.toLowerCase()}`">
-              {{ statusLabel(item.status) }}
+            <div class="admin-cell-strong admin-cell-clip">{{ item.title }}</div>
+          </td>
+          <td class="admin-cell-muted">#{{ item.creatorId }}</td>
+          <td class="admin-cell-muted">{{ item.categoryName || '—' }}</td>
+          <td>
+            <span class="admin-tag" :class="item.accessType === 'FREE' ? 'is-info' : 'is-warn'">
+              {{ item.accessType === 'FREE' ? '免费' : '订阅' }}
             </span>
           </td>
-          <td class="cell-actions">
+          <td>
+            <span class="admin-tag" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
+          </td>
+          <td class="admin-actions">
             <template v-if="item.status === 'PENDING'">
               <a @click.prevent="doApprove(item)">通过</a>
-              <a class="danger" @click.prevent="openReject(item)">驳回</a>
+              <a class="is-danger" @click.prevent="openReject(item)">驳回</a>
             </template>
             <a v-else @click.prevent="preview(item)">查看</a>
           </td>
@@ -45,13 +52,13 @@
       </tbody>
     </table>
 
-    <div class="pager">
+    <div class="admin-pager">
       <el-pagination layout="prev, pager, next, total" :total="total" :current-page="pageNum"
                      :page-size="pageSize" background @current-change="handlePageChange" />
     </div>
 
     <!-- 驳回原因 -->
-    <el-dialog v-model="rejectVisible" title="驳回内容" width="440px">
+    <el-dialog v-model="rejectVisible" class="admin-dialog" title="驳回内容" width="440px">
       <p class="dialog-tip">驳回原因会展示给创作者，请写清楚需要修改什么。</p>
       <el-input v-model="rejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit
                 placeholder="如：缺少示例代码" />
@@ -62,7 +69,7 @@
     </el-dialog>
 
     <!-- 内容预览抽屉：排版渲染与读者端一致，可切换查看源文 -->
-    <el-drawer v-model="drawerVisible" title="内容详情" size="52%">
+    <el-drawer v-model="drawerVisible" class="admin-drawer" title="内容详情" size="52%">
       <div v-if="current" class="drawer-body">
         <h3>{{ current.title }}</h3>
         <p class="drawer-meta">
@@ -82,10 +89,10 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
 import { approveContent, pageForReview, rejectContent } from '@/api/content'
 import type { ContentItem, ContentStatus } from '@/api/types'
 import { parseArticleBody } from '@/utils/articleParser'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import ArticleBody from '@/components/article/ArticleBody.vue'
 
 const loading = ref(true)
@@ -125,6 +132,18 @@ const STATUS_LABELS: Record<string, string> = {
 }
 function statusLabel(s: string) {
   return STATUS_LABELS[s] ?? s
+}
+
+/** 状态 → admin-tag 变体（在 admin-system.scss 里统一定义） */
+const STATUS_TAG_CLASS: Record<string, string> = {
+  PUBLISHED: 'is-on',
+  PENDING: 'is-warn',
+  REJECTED: 'is-off',
+  OFFLINE: 'is-off',
+  DRAFT: '',
+}
+function statusClass(s: string) {
+  return STATUS_TAG_CLASS[s] ?? ''
 }
 
 function flash(text: string, type: 'success' | 'error' = 'success') {
@@ -218,26 +237,10 @@ onMounted(load)
 </script>
 
 <style scoped>
-.review-page { padding: 60px 0 30px; }
-.toolbar { display: flex; align-items: center; gap: 12px; padding: 20px 0 8px; flex-wrap: wrap; }
-.review-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-.review-table th {
-  text-align: left; font: 10px 'DM Mono', monospace; color: var(--muted);
-  padding: 10px 8px; border-bottom: 1px solid var(--line);
-}
-.review-table td { padding: 13px 8px; border-bottom: 1px solid var(--line); }
-.cell-title { max-width: 300px; font-weight: 600; }
-.cell-actions a { margin-right: 12px; cursor: pointer; text-decoration: underline; }
-.cell-actions a.danger { color: #c54a32; }
-.status-tag { font: 10px 'DM Mono', monospace; padding: 2px 7px; border: 1px solid var(--line); }
-.status-published { color: #68863d; border-color: #68863d; }
-.status-pending { color: #c07a1f; border-color: #c07a1f; }
-.status-rejected { color: #c54a32; border-color: #c54a32; }
-.status-offline { color: #c54a32; border-color: #c54a32; }
-.status-draft { color: var(--muted); }
-.pager { display: flex; justify-content: flex-end; padding-top: 22px; }
+/* 通用样式（页头 / 表格 / 标签 / 工具条）统一在 styles/admin-system.scss，
+   这里只保留本页特有的抽屉内容排版。 */
 .dialog-tip { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
-.drawer-body h3 { margin: 0 0 8px; }
+.drawer-body h3 { margin: 0 0 8px; font-size: 19px; letter-spacing: -0.02em; }
 .drawer-meta { font: 10px 'DM Mono', monospace; color: var(--muted); }
 .drawer-toggle { margin-left: 14px; }
 .drawer-toggle a { cursor: pointer; margin-right: 10px; color: var(--muted); }
@@ -247,5 +250,4 @@ onMounted(load)
   white-space: pre-wrap; word-break: break-word; font-family: 'Noto Serif SC', serif;
   font-size: 14px; line-height: 1.9; background: var(--paper); padding: 16px; border: 1px solid var(--line);
 }
-.success-text { color: #68863d; font-size: 12px; }
 </style>

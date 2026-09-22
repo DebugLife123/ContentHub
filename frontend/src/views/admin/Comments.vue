@@ -1,47 +1,52 @@
 <template>
-  <div class="admin-page content-width">
-    <div class="section-heading">
-      <div><p class="eyebrow">ADMIN / COMMENTS</p><h2>评论管理<br><em>隐藏与删除</em></h2></div>
-      <p class="heading-aside">仅管理员可见。<br>隐藏后评论在前台消失，但仍保留在管理端可恢复。</p>
-    </div>
+  <div>
+    <AdminPageHeader
+      eyebrow="ADMIN / COMMENTS"
+      title="评论管理"
+      accent="隐藏与删除"
+      description="仅管理员可见。隐藏后评论在前台消失，但仍保留在管理端可恢复。"
+    />
 
-    <div class="toolbar">
+    <div class="admin-toolbar">
       <el-select v-model="status" placeholder="全部状态" clearable style="width: 150px" @change="applyFilter">
         <el-option label="正常" value="NORMAL" />
         <el-option label="已隐藏" value="HIDDEN" />
       </el-select>
       <el-button class="button button-dark" @click="applyFilter">筛选</el-button>
-      <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
+      <span v-if="message" class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
     </div>
 
-    <div v-if="loading" class="empty-state">正在加载…</div>
-    <div v-else-if="!items.length" class="empty-state">没有符合条件的评论。</div>
+    <p v-if="loading" class="admin-loading">LOADING…</p>
+    <div v-else-if="!items.length" class="admin-empty">
+      <span class="admin-empty-mark">···</span>
+      <p>没有符合条件的评论。</p>
+    </div>
     <table v-else class="admin-table">
       <thead>
         <tr><th>ID</th><th>用户</th><th>内容</th><th>评论</th><th>状态</th><th>时间</th><th>操作</th></tr>
       </thead>
       <tbody>
         <tr v-for="c in items" :key="c.id">
-          <td>{{ c.id }}</td>
-          <td>{{ c.username || ('#' + c.userId) }}</td>
-          <td class="cell-title">{{ c.contentTitle || ('#' + c.contentId) }}</td>
-          <td class="cell-body">{{ c.body }}</td>
+          <td class="admin-cell-mono">{{ c.id }}</td>
+          <td class="admin-cell-muted">{{ c.username || ('#' + c.userId) }}</td>
+          <td class="admin-cell-strong">{{ c.contentTitle || ('#' + c.contentId) }}</td>
           <td>
-            <span class="status-tag" :class="c.status === 'NORMAL' ? 'status-on' : 'status-off'">
-              {{ c.status === 'NORMAL' ? '正常' : '已隐藏' }}
-            </span>
+            <div class="admin-cell-clip">{{ c.body }}</div>
           </td>
-          <td class="cell-time">{{ c.createTime || '—' }}</td>
-          <td class="cell-actions">
+          <td>
+            <span class="admin-tag" :class="statusClass(c.status)">{{ c.status === 'NORMAL' ? '正常' : '已隐藏' }}</span>
+          </td>
+          <td class="admin-cell-mono">{{ c.createTime || '—' }}</td>
+          <td class="admin-actions">
             <a v-if="c.status === 'NORMAL'" @click.prevent="setStatus(c, 'HIDDEN')">隐藏</a>
             <a v-else @click.prevent="setStatus(c, 'NORMAL')">恢复</a>
-            <a class="danger" @click.prevent="remove(c)">删除</a>
+            <a class="is-danger" @click.prevent="remove(c)">删除</a>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <div class="pager">
+    <div class="admin-pager">
       <el-pagination layout="prev, pager, next, total" :total="total" :current-page="pageNum"
                      :page-size="pageSize" background @current-change="handlePageChange" />
     </div>
@@ -53,6 +58,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import { deleteCommentAsAdmin, pageAdminComments, updateCommentStatus } from '@/api/admin'
 import type { Comment } from '@/api/types'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 const loading = ref(true)
 const items = ref<Comment[]>([])
@@ -62,6 +68,15 @@ const pageSize = ref(10)
 const status = ref('')
 const message = ref('')
 const messageType = ref<'success' | 'error'>('success')
+
+/** 状态 → admin-tag 变体（在 admin-system.scss 里统一定义） */
+const STATUS_TAG_CLASS: Record<string, string> = {
+  NORMAL: 'is-on',
+  HIDDEN: 'is-off',
+}
+function statusClass(s: string) {
+  return STATUS_TAG_CLASS[s] ?? ''
+}
 
 function flash(text: string, type: 'success' | 'error' = 'success') {
   message.value = text
@@ -136,24 +151,3 @@ async function remove(c: Comment) {
 
 onMounted(load)
 </script>
-
-<style scoped>
-.admin-page { padding: 60px 0 30px; }
-.toolbar { display: flex; align-items: center; gap: 12px; padding: 20px 0 8px; flex-wrap: wrap; }
-.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
-.admin-table th {
-  text-align: left; font: 10px 'DM Mono', monospace; color: var(--muted);
-  padding: 10px 8px; border-bottom: 1px solid var(--line);
-}
-.admin-table td { padding: 13px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.cell-title { max-width: 180px; color: var(--muted); }
-.cell-body { max-width: 280px; }
-.cell-time { font: 10px 'DM Mono', monospace; color: var(--muted); }
-.cell-actions a { margin-right: 12px; cursor: pointer; text-decoration: underline; }
-.cell-actions a.danger { color: #c54a32; }
-.status-tag { font: 10px 'DM Mono', monospace; padding: 2px 7px; border: 1px solid var(--line); }
-.status-on { color: #68863d; border-color: #68863d; }
-.status-off { color: var(--muted); }
-.pager { display: flex; justify-content: flex-end; padding-top: 22px; }
-.success-text { color: #68863d; font-size: 12px; }
-</style>

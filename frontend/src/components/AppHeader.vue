@@ -14,21 +14,10 @@
         <RouterLink to="/skills">Skill 商城</RouterLink>
         <RouterLink v-if="canCreate" to="/creator">创作者工作台</RouterLink>
 
-        <el-dropdown v-if="isAdmin" trigger="hover" @command="go">
-          <span class="nav-dropdown">管理后台 <i>⌄</i></span>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="/admin/contents">内容审核</el-dropdown-item>
-              <el-dropdown-item command="/admin/creator-applications">创作者申请</el-dropdown-item>
-              <el-dropdown-item command="/admin/comments">评论管理</el-dropdown-item>
-              <el-dropdown-item command="/admin/users">用户管理</el-dropdown-item>
-              <el-dropdown-item command="/admin/categories">内容分类</el-dropdown-item>
-              <el-dropdown-item command="/admin/plans">套餐管理</el-dropdown-item>
-              <el-dropdown-item command="/admin/skills">Skill 商城</el-dropdown-item>
-              <el-dropdown-item command="/admin/skill-comments">Skill 评论</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+        <!-- 管理后台已是独立整屏控制台，这里只留一个入口，模块导航交给它的侧边栏 -->
+        <RouterLink v-if="isAdmin" to="/admin" class="admin-entry">
+          管理后台 <i>↗</i>
+        </RouterLink>
       </nav>
 
       <div class="header-actions">
@@ -76,10 +65,6 @@ const roleLabel = computed(() => {
   const map: Record<string, string> = { USER: '普通用户', CREATOR: '创作者', ADMIN: '管理员' }
   return userStore.role ? map[userStore.role] ?? userStore.role : ''
 })
-
-function go(path: string) {
-  router.push(path)
-}
 
 async function handleLogout() {
   await userStore.logout()
@@ -138,17 +123,25 @@ onMounted(async () => {
 .main-nav {
   gap: 18px;
 }
-.nav-dropdown {
-  font: 500 12px 'DM Mono', monospace;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  cursor: pointer;
-  outline: none;
-}
-.nav-dropdown:hover {
+/* 管理后台入口：比普通导航多一层描边，明确它是"另一个工作区"的入口 */
+.admin-entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--ink);
+  font: 500 11px 'DM Mono', monospace;
+  letter-spacing: 0.04em;
   color: var(--ink);
+  text-decoration: none;
+  transition: background 0.18s, color 0.18s;
 }
-.nav-dropdown i {
+.admin-entry i {
   font-style: normal;
+  color: var(--orange);
+}
+.admin-entry:hover {
+  background: var(--ink);
+  color: #fff;
 }
 </style>

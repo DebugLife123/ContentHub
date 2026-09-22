@@ -1,15 +1,15 @@
 <template>
-  <div class="admin-page content-width">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">ADMIN / SKILL MARKETPLACE</p>
-        <h2>Skill 商城管理<br /><em>上架、下架与分类维护</em></h2>
-      </div>
-      <p class="heading-aside">
-        共 {{ total }} 个 Skill<br />
-        这里改的数据会直接反映到前台 Skill 商城。
-      </p>
-    </div>
+  <div>
+    <AdminPageHeader
+      eyebrow="ADMIN / SKILL MARKETPLACE"
+      title="Skill 商城管理"
+      accent="上架、下架与分类维护"
+      :description="'共 ' + total + ' 个 Skill。这里改的数据会直接反映到前台 Skill 商城。'"
+    >
+      <template #actions>
+        <el-button class="button button-dark" @click="$router.push('/admin/skills/new')">新增 Skill <span>↗</span></el-button>
+      </template>
+    </AdminPageHeader>
 
     <div class="tabs">
       <span :class="{ active: tab === 'skills' }" @click="tab = 'skills'">Skill 管理</span>
@@ -18,7 +18,7 @@
 
     <!-- ---------------------------------------------------------- Skill 列表 -->
     <template v-if="tab === 'skills'">
-      <div class="toolbar">
+      <div class="admin-toolbar">
         <el-input
           v-model="filters.keyword"
           placeholder="搜索名称 / 作者 / 仓库 / 标签"
@@ -37,12 +37,14 @@
           <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
         </el-select>
         <el-button class="button button-dark" @click="applyFilters">筛选</el-button>
-        <el-button class="button button-dark" @click="$router.push('/admin/skills/new')">新增 Skill <span>↗</span></el-button>
-        <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
+        <span v-if="message" class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
       </div>
 
-      <div v-if="loading" class="empty-state">正在加载…</div>
-      <div v-else-if="!items.length" class="empty-state">没有符合条件的 Skill。</div>
+      <p v-if="loading" class="admin-loading">LOADING…</p>
+      <div v-else-if="!items.length" class="admin-empty">
+        <span class="admin-empty-mark">···</span>
+        <p>没有符合条件的 Skill。</p>
+      </div>
       <table v-else class="admin-table">
         <thead>
           <tr>
@@ -61,33 +63,33 @@
               <div class="cell-skill">
                 <span class="cell-icon">{{ item.icon || '🧩' }}</span>
                 <div>
-                  <strong>{{ item.name }}</strong>
+                  <strong class="admin-cell-strong">{{ item.name }}</strong>
                   <small>{{ item.repo || '—' }}</small>
                 </div>
               </div>
             </td>
-            <td>{{ item.categoryName || '—' }}</td>
-            <td class="cell-mono">★ {{ formatStars(item.stars) }}</td>
+            <td class="admin-cell-muted">{{ item.categoryName || '—' }}</td>
+            <td class="admin-cell-mono">★ {{ formatStars(item.stars) }}</td>
             <td>
-              <span class="status-tag" :class="item.accessType === 'FREE' ? 'status-free' : 'status-member'">
+              <span class="admin-tag" :class="item.accessType === 'FREE' ? 'is-info' : 'is-warn'">
                 {{ item.accessType === 'FREE' ? '免费' : '会员' }}
               </span>
             </td>
             <td>
-              <span class="status-tag" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
+              <span class="admin-tag" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
             </td>
-            <td class="cell-time">{{ formatDate(item.updateTime) }}</td>
-            <td class="cell-actions">
+            <td class="admin-cell-mono">{{ formatDate(item.updateTime) }}</td>
+            <td class="admin-actions">
               <a @click.prevent="$router.push(`/admin/skills/${item.id}/edit`)">编辑</a>
               <a v-if="item.status !== 'PUBLISHED'" @click.prevent="handlePublish(item)">上架</a>
               <a v-else @click.prevent="handleOffline(item)">下架</a>
-              <a class="danger" @click.prevent="handleDelete(item)">删除</a>
+              <a class="is-danger" @click.prevent="handleDelete(item)">删除</a>
             </td>
           </tr>
         </tbody>
       </table>
 
-      <div class="pager">
+      <div class="admin-pager">
         <el-pagination
           layout="prev, pager, next, total"
           :total="total"
@@ -101,9 +103,9 @@
 
     <!-- ---------------------------------------------------------- 分类管理 -->
     <template v-else>
-      <div class="toolbar">
+      <div class="admin-toolbar">
         <el-button class="button button-dark" @click="openCreateCategory">新增分类 <span>↗</span></el-button>
-        <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
+        <span v-if="message" class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
       </div>
 
       <table class="admin-table">
@@ -119,25 +121,25 @@
         </thead>
         <tbody>
           <tr v-for="c in allCategories" :key="c.id">
-            <td>{{ c.id }}</td>
-            <td class="cell-name">{{ c.name }}</td>
-            <td>{{ c.sort }}</td>
+            <td class="admin-cell-muted">{{ c.id }}</td>
+            <td class="admin-cell-strong">{{ c.name }}</td>
+            <td class="admin-cell-muted">{{ c.sort }}</td>
             <td>
-              <span class="status-tag" :class="c.status === 'ENABLED' ? 'status-published' : 'status-offline'">
+              <span class="admin-tag" :class="c.status === 'ENABLED' ? 'is-on' : 'is-off'">
                 {{ c.status === 'ENABLED' ? '启用' : '禁用' }}
               </span>
             </td>
-            <td>{{ c.skillCount ?? 0 }}</td>
-            <td class="cell-actions">
+            <td class="admin-cell-muted">{{ c.skillCount ?? 0 }}</td>
+            <td class="admin-actions">
               <a @click.prevent="openEditCategory(c)">编辑</a>
-              <a class="danger" @click.prevent="handleDeleteCategory(c)">删除</a>
+              <a class="is-danger" @click.prevent="handleDeleteCategory(c)">删除</a>
             </td>
           </tr>
         </tbody>
       </table>
     </template>
 
-    <el-dialog v-model="categoryDialog" :title="editingCategory ? '编辑分类' : '新增分类'" width="420px">
+    <el-dialog v-model="categoryDialog" class="admin-dialog" :title="editingCategory ? '编辑分类' : '新增分类'" width="420px">
       <el-form ref="categoryFormRef" :model="categoryForm" :rules="categoryRules" label-position="top">
         <el-form-item label="分类名称" prop="name">
           <el-input v-model="categoryForm.name" maxlength="60" placeholder="如：开发工具" />
@@ -177,6 +179,7 @@ import {
   updateSkillCategory,
 } from '@/api/skill'
 import type { SkillCategory, SkillItem, SkillStatus } from '@/api/types'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 const tab = ref<'skills' | 'categories'>('skills')
 
@@ -203,8 +206,14 @@ const STATUS_LABEL: Record<SkillStatus, string> = {
   OFFLINE: '已下架',
 }
 const statusLabel = (s: SkillStatus) => STATUS_LABEL[s] ?? s
-const statusClass = (s: SkillStatus) =>
-  s === 'PUBLISHED' ? 'status-published' : s === 'DRAFT' ? 'status-draft' : 'status-offline'
+
+/** 状态 → admin-tag 变体（在 admin-system.scss 里统一定义） */
+const STATUS_TAG_CLASS: Record<string, string> = {
+  PUBLISHED: 'is-on',
+  DRAFT: '',
+  OFFLINE: 'is-off',
+}
+const statusClass = (s: SkillStatus) => STATUS_TAG_CLASS[s] ?? ''
 
 function flash(text: string, type: 'success' | 'error' = 'success') {
   message.value = text
@@ -397,9 +406,8 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.admin-page {
-  padding: 60px 0 30px;
-}
+/* 通用样式（页头 / 表格 / 标签 / 工具条 / 空态）统一在 styles/admin-system.scss，
+   这里只保留本页特有的 tab 切换与 Skill 单元格徽章。 */
 .tabs {
   display: flex;
   gap: 30px;
@@ -427,36 +435,11 @@ onMounted(async () => {
   height: 2px;
   background: var(--ink);
 }
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 0 8px;
-}
 .filter-keyword {
   width: 260px;
 }
 .filter-select {
   width: 150px;
-}
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  margin-top: 12px;
-}
-.admin-table th {
-  text-align: left;
-  font: 10px 'DM Mono', monospace;
-  color: var(--muted);
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--line);
-}
-.admin-table td {
-  padding: 13px 8px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
 }
 .cell-skill {
   display: flex;
@@ -483,58 +466,5 @@ onMounted(async () => {
   font: 10px 'DM Mono', monospace;
   color: var(--muted);
   word-break: break-all;
-}
-.cell-name {
-  font-weight: 600;
-}
-.cell-mono {
-  font: 11px 'DM Mono', monospace;
-}
-.cell-time {
-  font: 10px 'DM Mono', monospace;
-  color: var(--muted);
-}
-.cell-actions a {
-  margin-right: 12px;
-  cursor: pointer;
-  text-decoration: underline;
-  white-space: nowrap;
-}
-.cell-actions a.danger {
-  color: #c54a32;
-}
-.status-tag {
-  font: 10px 'DM Mono', monospace;
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-  white-space: nowrap;
-}
-.status-published {
-  color: #68863d;
-  border-color: #68863d;
-}
-.status-draft {
-  color: var(--muted);
-}
-.status-offline {
-  color: #a8481f;
-  border-color: #e8b394;
-}
-.status-free {
-  color: #4f6b28;
-  border-color: #b6c98a;
-}
-.status-member {
-  color: #a8481f;
-  border-color: #e8b394;
-}
-.pager {
-  display: flex;
-  justify-content: flex-end;
-  padding: 30px 0 10px;
-}
-.success-text {
-  color: #68863d;
-  font-size: 12px;
 }
 </style>

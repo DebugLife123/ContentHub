@@ -1,16 +1,22 @@
 <template>
-  <div class="admin-page content-width">
-    <div class="section-heading">
-      <div><p class="eyebrow">ADMIN / CATEGORIES</p><h2>分类管理<br><em>内容分类维护</em></h2></div>
-      <p class="heading-aside">仅管理员可见。<br>分类下有内容时不允许删除。</p>
+  <div>
+    <AdminPageHeader
+      eyebrow="ADMIN / CATEGORIES"
+      title="分类管理"
+      accent="内容分类维护"
+      description="仅管理员可见。分类下有内容时不允许删除。"
+    >
+      <template #actions>
+        <el-button class="button button-dark" @click="openCreate">新增分类 <span>↗</span></el-button>
+      </template>
+    </AdminPageHeader>
+
+    <!-- 没有筛选控件，只在有反馈文案时占一行，避免常态空出一段留白 -->
+    <div v-if="message" class="admin-toolbar">
+      <span class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
     </div>
 
-    <div class="toolbar">
-      <el-button class="button button-dark" @click="openCreate">新增分类 <span>↗</span></el-button>
-      <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
-    </div>
-
-    <div v-if="loading" class="empty-state">正在加载…</div>
+    <p v-if="loading" class="admin-loading">LOADING…</p>
     <table v-else class="admin-table">
       <thead>
         <tr>
@@ -25,25 +31,23 @@
       </thead>
       <tbody>
         <tr v-for="item in items" :key="item.id">
-          <td>{{ item.id }}</td>
-          <td class="cell-name">{{ item.name }}</td>
-          <td>{{ item.sort }}</td>
+          <td class="admin-cell-mono">{{ item.id }}</td>
+          <td class="admin-cell-strong">{{ item.name }}</td>
+          <td class="admin-cell-mono">{{ item.sort }}</td>
           <td>
-            <span class="status-tag" :class="item.status === 'ENABLED' ? 'status-on' : 'status-off'">
-              {{ item.status === 'ENABLED' ? '启用' : '禁用' }}
-            </span>
+            <span class="admin-tag" :class="statusClass(item.status)">{{ item.status === 'ENABLED' ? '启用' : '禁用' }}</span>
           </td>
-          <td>{{ item.contentCount ?? 0 }}</td>
-          <td class="cell-time">{{ item.createTime || '—' }}</td>
-          <td class="cell-actions">
+          <td class="admin-cell-mono">{{ item.contentCount ?? 0 }}</td>
+          <td class="admin-cell-mono">{{ item.createTime || '—' }}</td>
+          <td class="admin-actions">
             <a @click.prevent="openEdit(item)">编辑</a>
-            <a class="danger" @click.prevent="handleDelete(item)">删除</a>
+            <a class="is-danger" @click.prevent="handleDelete(item)">删除</a>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <el-dialog v-model="dialogVisible" :title="editing ? '编辑分类' : '新增分类'" width="420px">
+    <el-dialog v-model="dialogVisible" class="admin-dialog" :title="editing ? '编辑分类' : '新增分类'" width="420px">
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
         <el-form-item label="分类名称" prop="name">
           <el-input v-model="form.name" maxlength="60" placeholder="如：前端工程" />
@@ -72,6 +76,7 @@ import { ElMessageBox } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { createCategory, deleteCategory, listAllCategories, updateCategory } from '@/api/category'
 import type { Category } from '@/api/types'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 const loading = ref(true)
 const saving = ref(false)
@@ -86,6 +91,15 @@ const form = reactive({ name: '', sort: 0, status: 'ENABLED' as 'ENABLED' | 'DIS
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入分类名称', trigger: 'blur' }],
+}
+
+/** 状态 → admin-tag 变体（在 admin-system.scss 里统一定义） */
+const STATUS_TAG_CLASS: Record<string, string> = {
+  ENABLED: 'is-on',
+  DISABLED: 'is-off',
+}
+function statusClass(s: string) {
+  return STATUS_TAG_CLASS[s] ?? ''
 }
 
 function flash(text: string, type: 'success' | 'error' = 'success') {
@@ -176,63 +190,3 @@ async function handleDelete(item: Category) {
 
 onMounted(load)
 </script>
-
-<style scoped>
-.admin-page {
-  padding: 60px 0 30px;
-}
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 20px 0 8px;
-}
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  margin-top: 12px;
-}
-.admin-table th {
-  text-align: left;
-  font: 10px 'DM Mono', monospace;
-  color: var(--muted);
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--line);
-}
-.admin-table td {
-  padding: 13px 8px;
-  border-bottom: 1px solid var(--line);
-}
-.cell-name {
-  font-weight: 600;
-}
-.cell-time {
-  font: 10px 'DM Mono', monospace;
-  color: var(--muted);
-}
-.cell-actions a {
-  margin-right: 12px;
-  cursor: pointer;
-  text-decoration: underline;
-}
-.cell-actions a.danger {
-  color: #c54a32;
-}
-.status-tag {
-  font: 10px 'DM Mono', monospace;
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-}
-.status-on {
-  color: #68863d;
-  border-color: #68863d;
-}
-.status-off {
-  color: var(--muted);
-}
-.success-text {
-  color: #68863d;
-  font-size: 12px;
-}
-</style>

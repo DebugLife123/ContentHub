@@ -1,28 +1,30 @@
 <template>
-  <div class="admin-page content-width">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">ADMIN / CREATOR APPLICATIONS</p>
-        <h2>创作者申请<br /><em>审核通过后才有发布权限</em></h2>
-      </div>
-      <p class="heading-aside">
-        待审核 <strong>{{ pendingTotal }}</strong> 条<br />
-        通过后用户角色升为 CREATOR，并自动建立创作者资料。
-      </p>
-    </div>
+  <div>
+    <AdminPageHeader
+      eyebrow="ADMIN / CREATOR APPLICATIONS"
+      title="创作者申请"
+      accent="审核通过后才有发布权限"
+      :description="'待审核 ' + pendingTotal + ' 条。通过后用户角色升为 CREATOR，并自动建立创作者资料。'"
+    >
+      <template #actions>
+        <el-button class="button button-dark" @click="load">刷新 <span>↗</span></el-button>
+      </template>
+    </AdminPageHeader>
 
-    <div class="toolbar">
+    <div class="admin-toolbar">
       <el-select v-model="status" class="filter-select" @change="applyFilter">
         <el-option label="待审核" value="PENDING" />
         <el-option label="已通过" value="APPROVED" />
         <el-option label="已驳回" value="REJECTED" />
       </el-select>
-      <el-button class="button button-dark" @click="load">刷新</el-button>
-      <span v-if="message" :class="messageType === 'error' ? 'error-text' : 'success-text'">{{ message }}</span>
+      <span v-if="message" class="admin-flash" :class="messageType === 'error' ? 'is-error' : 'is-ok'">{{ message }}</span>
     </div>
 
-    <div v-if="loading" class="empty-state">正在加载…</div>
-    <div v-else-if="!items.length" class="empty-state">这个状态下没有申请。</div>
+    <p v-if="loading" class="admin-loading">LOADING…</p>
+    <div v-else-if="!items.length" class="admin-empty">
+      <span class="admin-empty-mark">···</span>
+      <p>这个状态下没有申请。</p>
+    </div>
     <table v-else class="admin-table">
       <thead>
         <tr>
@@ -35,30 +37,32 @@
       </thead>
       <tbody>
         <tr v-for="item in items" :key="item.id">
-          <td class="cell-name">
+          <td class="admin-cell-strong">
             {{ item.nickname || item.username || ('用户 #' + item.userId) }}
             <small>@{{ item.username }}</small>
           </td>
-          <td class="cell-intro">{{ item.intro || '（未填写）' }}</td>
-          <td class="cell-time">{{ item.createTime || '—' }}</td>
           <td>
-            <span class="status-tag" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
+            <div class="admin-cell-muted admin-cell-clip">{{ item.intro || '（未填写）' }}</div>
+          </td>
+          <td class="admin-cell-mono">{{ item.createTime || '—' }}</td>
+          <td>
+            <span class="admin-tag" :class="statusClass(item.status)">{{ statusLabel(item.status) }}</span>
             <div v-if="item.status === 'REJECTED' && item.rejectReason" class="reject-reason">
               {{ item.rejectReason }}
             </div>
           </td>
-          <td class="cell-actions">
+          <td class="admin-actions">
             <template v-if="item.status === 'PENDING'">
               <a @click.prevent="approve(item)">通过</a>
-              <a class="danger" @click.prevent="openReject(item)">驳回</a>
+              <a class="is-danger" @click.prevent="openReject(item)">驳回</a>
             </template>
-            <span v-else class="muted">已处理</span>
+            <span v-else class="admin-cell-mono">已处理</span>
           </td>
         </tr>
       </tbody>
     </table>
 
-    <div class="pager">
+    <div class="admin-pager">
       <el-pagination
         layout="prev, pager, next, total"
         :total="total"
@@ -69,7 +73,7 @@
       />
     </div>
 
-    <el-dialog v-model="rejectVisible" title="驳回申请" width="440px">
+    <el-dialog v-model="rejectVisible" class="admin-dialog" title="驳回申请" width="440px">
       <el-input v-model="rejectReason" type="textarea" :rows="4" maxlength="500" show-word-limit
                 placeholder="写清楚原因，申请人会在站内通知里看到" />
       <template #footer>
@@ -89,6 +93,7 @@ import {
   rejectCreatorApplication,
 } from '@/api/admin'
 import type { CreatorApplication } from '@/api/types'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 
 const loading = ref(true)
 const saving = ref(false)
@@ -111,8 +116,14 @@ const STATUS_LABEL: Record<string, string> = {
   REJECTED: '已驳回',
 }
 const statusLabel = (s: string) => STATUS_LABEL[s] ?? s
-const statusClass = (s: string) =>
-  s === 'APPROVED' ? 'status-approved' : s === 'REJECTED' ? 'status-rejected' : 'status-pending'
+
+/** 状态 → admin-tag 变体（在 admin-system.scss 里统一定义） */
+const STATUS_TAG_CLASS: Record<string, string> = {
+  APPROVED: 'is-on',
+  PENDING: 'is-warn',
+  REJECTED: 'is-off',
+}
+const statusClass = (s: string) => STATUS_TAG_CLASS[s] ?? ''
 
 function flash(text: string, type: 'success' | 'error' = 'success') {
   message.value = text
@@ -214,101 +225,20 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.admin-page {
-  padding: 60px 0 30px;
-}
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  padding: 20px 0 8px;
-}
+/* 通用样式（页头 / 表格 / 标签 / 工具条 / 空态）统一在 styles/admin-system.scss，
+   这里只保留本页特有的筛选宽度、昵称副行与驳回原因。 */
 .filter-select {
   width: 150px;
 }
-.admin-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  margin-top: 12px;
-}
-.admin-table th {
-  text-align: left;
-  font: 10px 'DM Mono', monospace;
-  color: var(--muted);
-  padding: 10px 8px;
-  border-bottom: 1px solid var(--line);
-}
-.admin-table td {
-  padding: 13px 8px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: top;
-}
-.cell-name {
-  font-weight: 600;
-  white-space: nowrap;
-}
-.cell-name small {
+.admin-cell-strong small {
   display: block;
   margin-top: 4px;
-  font: 10px 'DM Mono', monospace;
+  font: 400 10px 'DM Mono', monospace;
   color: var(--muted);
-  font-weight: 400;
-}
-.cell-intro {
-  max-width: 380px;
-  color: var(--muted);
-  line-height: 1.6;
-}
-.cell-time {
-  font: 10px 'DM Mono', monospace;
-  color: var(--muted);
-  white-space: nowrap;
 }
 .reject-reason {
   margin-top: 6px;
   font-size: 11px;
   color: #c54a32;
-}
-.cell-actions a {
-  margin-right: 12px;
-  cursor: pointer;
-  text-decoration: underline;
-  white-space: nowrap;
-}
-.cell-actions a.danger {
-  color: #c54a32;
-}
-.muted {
-  color: var(--muted);
-  font: 10px 'DM Mono', monospace;
-}
-.status-tag {
-  font: 10px 'DM Mono', monospace;
-  padding: 2px 7px;
-  border: 1px solid var(--line);
-  white-space: nowrap;
-}
-.status-approved {
-  color: #68863d;
-  border-color: #68863d;
-}
-.status-pending {
-  color: #a8481f;
-  border-color: #e8b394;
-}
-.status-rejected {
-  color: #c54a32;
-  border-color: #c54a32;
-}
-.pager {
-  display: flex;
-  justify-content: flex-end;
-  padding: 30px 0 10px;
-}
-.success-text {
-  color: #68863d;
-  font-size: 12px;
 }
 </style>
