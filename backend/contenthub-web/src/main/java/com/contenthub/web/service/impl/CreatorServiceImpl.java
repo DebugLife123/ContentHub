@@ -63,33 +63,6 @@ public class CreatorServiceImpl implements CreatorService {
     }
 
     @Override
-    @Transactional
-    public Response<CreatorProfileVO> apply() {
-        LoginUser loginUser = CurrentUserUtil.requireLoginUser();
-
-        if ("CREATOR".equals(loginUser.getRole()) || "ADMIN".equals(loginUser.getRole())) {
-            // 已经是创作者，直接返回现有资料（幂等）
-            return Response.success(toVO(loadOrCreate(loginUser)));
-        }
-
-        UserDO user = userMapper.selectById(loginUser.getUserId());
-        if (Objects.isNull(user)) {
-            throw new BizException(ResponseCodeEnum.UNAUTHORIZED);
-        }
-
-        userMapper.updateById(UserDO.builder()
-                .id(user.getId())
-                .role("CREATOR")
-                .build());
-
-        log.info("用户 {} 申请成为创作者，角色已更新为 CREATOR", user.getUsername());
-
-        // 注意：本次请求内 SecurityContext 里缓存的还是旧角色，
-        // 需要前端重新拉一次 /users/me 才能拿到新角色
-        return Response.success(toVO(loadOrCreate(loginUser)));
-    }
-
-    @Override
     public Response<CreatorProfileVO> myProfile() {
         LoginUser loginUser = CurrentUserUtil.requireLoginUser();
         if (!"CREATOR".equals(loginUser.getRole()) && !"ADMIN".equals(loginUser.getRole())) {

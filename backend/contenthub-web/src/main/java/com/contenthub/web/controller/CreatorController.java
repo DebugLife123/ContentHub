@@ -1,9 +1,12 @@
 package com.contenthub.web.controller;
 
 import com.contenthub.common.utils.Response;
+import com.contenthub.web.model.req.CreatorApplyReqVO;
 import com.contenthub.web.model.req.CreatorProfileReqVO;
+import com.contenthub.web.model.vo.CreatorApplicationVO;
 import com.contenthub.web.model.vo.CreatorDashboardVO;
 import com.contenthub.web.model.vo.CreatorProfileVO;
+import com.contenthub.web.service.CreatorApplicationService;
 import com.contenthub.web.service.CreatorService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,15 +31,24 @@ import org.springframework.web.bind.annotation.RestController;
 public class CreatorController {
 
     private final CreatorService creatorService;
+    private final CreatorApplicationService creatorApplicationService;
 
-    public CreatorController(CreatorService creatorService) {
+    public CreatorController(CreatorService creatorService,
+                             CreatorApplicationService creatorApplicationService) {
         this.creatorService = creatorService;
+        this.creatorApplicationService = creatorApplicationService;
     }
 
     @PostMapping("/creator/apply")
-    @Operation(summary = "申请成为创作者（普通用户 -> 创作者）")
-    public Response<CreatorProfileVO> apply() {
-        return creatorService.apply();
+    @Operation(summary = "提交创作者申请（进入待审核，管理员通过后才升级角色）")
+    public Response<CreatorApplicationVO> apply(@RequestBody(required = false) @Validated CreatorApplyReqVO req) {
+        return creatorApplicationService.apply(req);
+    }
+
+    @GetMapping("/creator/application")
+    @Operation(summary = "我的最近一条创作者申请（没申请过返回 null）")
+    public Response<CreatorApplicationVO> myApplication() {
+        return creatorApplicationService.myApplication();
     }
 
     @GetMapping("/creator/profile")

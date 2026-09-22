@@ -17,6 +17,9 @@ public class ContentPageReqVO extends PageReqVO implements Serializable {
     /** 按分类筛选 */
     private Long categoryId;
 
+    /** 按创作者筛选，用于创作者公开主页列出他的已发布内容 */
+    private Long creatorId;
+
     /** 按内容类型筛选，如 PROMPT */
     private String contentType;
 

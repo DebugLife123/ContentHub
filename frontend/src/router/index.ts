@@ -8,6 +8,7 @@ import ContentDetail from '../views/ContentDetail.vue'
 import Login from '../views/Login.vue'
 import Register from '../views/Register.vue'
 import Profile from '../views/Profile.vue'
+import Notifications from '../views/Notifications.vue'
 import Plans from '../views/subscription/Plans.vue'
 import MySubscriptions from '../views/subscription/MySubscriptions.vue'
 import CreatorDashboard from '../views/CreatorDashboard.vue'
@@ -23,6 +24,8 @@ import SkillManage from '../views/admin/SkillManage.vue'
 import SkillEdit from '../views/admin/SkillEdit.vue'
 import SkillList from '../views/skill/SkillList.vue'
 import SkillDetail from '../views/skill/SkillDetail.vue'
+import CreatorApplications from '../views/admin/CreatorApplications.vue'
+import CreatorPublic from '../views/CreatorPublic.vue'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -38,6 +41,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/', component: Home, meta: { title: '发现内容' } },
   { path: '/contents', component: ContentList, meta: { title: '内容库' } },
   { path: '/content/:id', component: ContentDetail, meta: { title: '内容详情' } },
+  // 创作者公开主页（后端已有 GET /creators/{userId}，以前没有页面用它）
+  { path: '/creators/:userId', component: CreatorPublic, meta: { title: '创作者主页' } },
   { path: '/login', component: Login, meta: { title: '登录' } },
   { path: '/register', component: Register, meta: { title: '注册' } },
 
@@ -50,6 +55,7 @@ const routes: RouteRecordRaw[] = [
 
   // ---------- 需要登录 ----------
   { path: '/profile', component: Profile, meta: { title: '个人中心', requiresAuth: true } },
+  { path: '/notifications', component: Notifications, meta: { title: '站内通知', requiresAuth: true } },
   {
     path: '/subscriptions',
     component: MySubscriptions,
@@ -88,6 +94,11 @@ const routes: RouteRecordRaw[] = [
     path: '/admin/contents',
     component: ContentReview,
     meta: { title: '内容审核', requiresAuth: true, roles: ['ADMIN'] },
+  },
+  {
+    path: '/admin/creator-applications',
+    component: CreatorApplications,
+    meta: { title: '创作者申请', requiresAuth: true, roles: ['ADMIN'] },
   },
   {
     path: '/admin/users',

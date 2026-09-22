@@ -73,6 +73,7 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/plans/mine").hasAnyRole("CREATOR", "ADMIN")
                         // 申请创作者身份：普通用户也要能调，所以是 authenticated 而不是 CREATOR
                         .requestMatchers(HttpMethod.POST, "/creator/apply").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/creator/application").authenticated()
                         // 收藏：登录即可，但必须写在 DELETE /contents/** 之前，否则会被创作者角色规则拦掉
                         .requestMatchers(HttpMethod.POST, "/contents/*/favorite").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/contents/*/favorite").authenticated()
@@ -83,6 +84,8 @@ public class WebSecurityConfig {
                         // 状态流转：提交审核与下架都只限作者本人（Service 里再校验归属）
                         .requestMatchers(HttpMethod.POST, "/contents/*/submit", "/contents/*/offline").hasAnyRole("CREATOR", "ADMIN")
                         .requestMatchers("/users/me", "/users/me/**").authenticated()
+                        // 站内通知：只能看自己的，归属在 Service 里再校验一次
+                        .requestMatchers("/notifications", "/notifications/**").authenticated()
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/subscriptions/**").authenticated()
 

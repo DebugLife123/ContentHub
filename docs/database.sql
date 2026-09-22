@@ -128,7 +128,8 @@ CREATE TABLE `subscriptions` (
   `creator_id` BIGINT NOT NULL COMMENT '创作者ID',
   `start_time` DATETIME NOT NULL COMMENT '开始时间',
   `end_time` DATETIME NOT NULL COMMENT '到期时间',
-  `status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态: ACTIVE生效中 / EXPIRED已过期 / CANCELED已取消',
+  `closed_time` DATETIME DEFAULT NULL COMMENT '提前终止/退款时间',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' COMMENT '状态: ACTIVE生效中 / EXPIRED已过期 / CANCELED已终止 / REFUNDED已退款',
   `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `is_deleted` TINYINT NOT NULL DEFAULT 0,
@@ -247,6 +248,65 @@ CREATE TABLE `skill` (
   KEY `idx_skill_status` (`status`),
   KEY `idx_skill_stars` (`stars`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Skill 表';
+
+-- ----------------------------
+-- 12. 创作者申请表（申请 -> 管理员审核 -> 通过才升级角色）
+-- ----------------------------
+DROP TABLE IF EXISTS `creator_application`;
+CREATE TABLE `creator_application` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `user_id` BIGINT NOT NULL COMMENT '申请人',
+  `intro` VARCHAR(500) DEFAULT NULL COMMENT '申请说明（想让管理员看到什么）',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING待审核 / APPROVED已通过 / REJECTED已驳回',
+  `reject_reason` VARCHAR(500) DEFAULT NULL COMMENT '驳回原因，仅 REJECTED 时有值',
+  `reviewer_id` BIGINT DEFAULT NULL COMMENT '审核人',
+  `review_time` DATETIME DEFAULT NULL COMMENT '审核时间',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_ca_user` (`user_id`),
+  KEY `idx_ca_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='创作者申请表';
+
+-- ----------------------------
+-- 13. Skill 评论表（内容库的 comments 绑在 content_id 上，Skill 单开一张）
+-- ----------------------------
+DROP TABLE IF EXISTS `skill_comment`;
+CREATE TABLE `skill_comment` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '评论ID',
+  `skill_id` BIGINT NOT NULL COMMENT 'Skill ID',
+  `user_id` BIGINT NOT NULL COMMENT '评论用户ID',
+  `body` VARCHAR(1000) NOT NULL COMMENT '评论内容',
+  `status` VARCHAR(20) NOT NULL DEFAULT 'NORMAL' COMMENT '状态: NORMAL / HIDDEN',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_sc_skill` (`skill_id`),
+  KEY `idx_sc_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='Skill 评论表';
+
+-- ----------------------------
+-- 14. 站内通知表（审核结果、申请结果等主动告诉用户）
+-- ----------------------------
+DROP TABLE IF EXISTS `notification`;
+CREATE TABLE `notification` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `user_id` BIGINT NOT NULL COMMENT '接收人',
+  `type` VARCHAR(40) NOT NULL COMMENT 'CONTENT_APPROVED / CONTENT_REJECTED / CONTENT_OFFLINE / CREATOR_APPROVED / CREATOR_REJECTED',
+  `title` VARCHAR(200) NOT NULL COMMENT '标题',
+  `body` VARCHAR(1000) DEFAULT NULL COMMENT '正文',
+  `biz_type` VARCHAR(30) DEFAULT NULL COMMENT '关联业务类型: CONTENT / CREATOR_APPLICATION',
+  `biz_id` BIGINT DEFAULT NULL COMMENT '关联业务ID，用于前端跳转',
+  `read_flag` TINYINT NOT NULL DEFAULT 0 COMMENT '0未读 / 1已读',
+  `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `is_deleted` TINYINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_nt_user_read` (`user_id`,`read_flag`),
+  KEY `idx_nt_user_time` (`user_id`,`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='站内通知表';
 
 -- ----------------------------
 -- 初始数据: 管理员 + 测试用户 (密码均为 123456, BCrypt)

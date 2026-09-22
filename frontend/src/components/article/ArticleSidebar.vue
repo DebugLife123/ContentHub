@@ -3,16 +3,24 @@
     <!-- 作者 -->
     <div class="art-aside-block">
       <p class="art-aside-title">作者</p>
-      <div class="art-author">
+      <component
+        :is="article.author.id ? 'RouterLink' : 'div'"
+        :to="article.author.id ? `/creators/${article.author.id}` : undefined"
+        class="art-author"
+        :class="{ 'is-link': !!article.author.id }"
+      >
         <span class="art-avatar">
           <img v-if="article.author.avatar" :src="article.author.avatar" :alt="article.author.name">
           <template v-else>{{ initial }}</template>
         </span>
         <div>
           <span class="art-author-name">{{ article.author.name }}</span>
-          <span class="art-author-bio">{{ article.author.bio || 'ContentHub 数字内容创作者' }}</span>
+          <span class="art-author-bio">
+            {{ article.author.bio || 'ContentHub 数字内容创作者' }}
+            <template v-if="article.author.id"> · 查看主页 →</template>
+          </span>
         </div>
-      </div>
+      </component>
     </div>
 
     <!-- 文章数据 -->

@@ -19,6 +19,7 @@
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="/admin/contents">内容审核</el-dropdown-item>
+              <el-dropdown-item command="/admin/creator-applications">创作者申请</el-dropdown-item>
               <el-dropdown-item command="/admin/comments">评论管理</el-dropdown-item>
               <el-dropdown-item command="/admin/users">用户管理</el-dropdown-item>
               <el-dropdown-item command="/admin/categories">内容分类</el-dropdown-item>
@@ -31,6 +32,10 @@
 
       <div class="header-actions">
         <template v-if="userStore.isLoggedIn">
+          <RouterLink to="/notifications" class="bell-link" :title="unread > 0 ? `${unread} 条未读通知` : '通知'">
+            <span class="bell">🔔</span>
+            <span v-if="unread > 0" class="bell-badge">{{ unread > 99 ? '99+' : unread }}</span>
+          </RouterLink>
           <RouterLink to="/profile" class="login-link">
             {{ userStore.userInfo?.nickname || userStore.userInfo?.username || '我的' }}
             <span class="role-badge">{{ roleLabel }}</span>
@@ -47,12 +52,32 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { unreadNotificationCount } from '@/api/notification'
 
 const userStore = useUserStore()
 const router = useRouter()
+
+/** 未读通知数，给顶栏铃铛做角标 */
+const unread = ref(0)
+
+async function refreshUnread() {
+  if (!userStore.isLoggedIn) {
+    unread.value = 0
+    return
+  }
+  try {
+    const res = await unreadNotificationCount()
+    if (res.data.success) unread.value = res.data.data ?? 0
+  } catch {
+    unread.value = 0
+  }
+}
+
+// 登录/退出后立刻刷新角标，不用等下一次进页面
+watch(() => userStore.isLoggedIn, refreshUnread)
 
 /** 管理员同时具备创作者能力，与后端 Security 规则保持一致 */
 const canCreate = computed(() => userStore.hasRole('CREATOR', 'ADMIN'))
@@ -73,14 +98,42 @@ async function handleLogout() {
 }
 
 // 刷新页面后补齐用户信息（路由守卫在跳转时也会做一次）
-onMounted(() => {
+onMounted(async () => {
   if (userStore.token && !userStore.userInfo) {
-    userStore.fetchCurrentUser()
+    await userStore.fetchCurrentUser()
   }
+  await refreshUnread()
 })
 </script>
 
 <style scoped>
+.bell-link {
+  position: relative;
+  text-decoration: none;
+  line-height: 1;
+}
+.bell {
+  font-size: 15px;
+  filter: grayscale(1);
+  opacity: 0.75;
+}
+.bell-link:hover .bell {
+  opacity: 1;
+}
+.bell-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--orange);
+  color: #fff;
+  font: 9px 'DM Mono', monospace;
+  line-height: 15px;
+  text-align: center;
+}
 .role-badge {
   margin-left: 6px;
   padding: 1px 6px;

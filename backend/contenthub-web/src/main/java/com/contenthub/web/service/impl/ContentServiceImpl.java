@@ -21,6 +21,7 @@ import com.contenthub.web.service.ContentCacheService;
 import com.contenthub.web.service.ContentService;
 import com.contenthub.web.service.ContentStatService;
 import com.contenthub.web.service.FavoriteService;
+import com.contenthub.web.service.NotificationService;
 import com.contenthub.web.service.ReadingHistoryService;
 import com.contenthub.web.util.CurrentUserUtil;
 import lombok.extern.slf4j.Slf4j;
@@ -56,6 +57,7 @@ public class ContentServiceImpl implements ContentService {
     private final ContentCacheService cacheService;
     private final ContentStatService statService;
     private final ReadingHistoryService readingHistoryService;
+    private final NotificationService notificationService;
 
     public ContentServiceImpl(ContentMapper contentMapper,
                               ContentCategoryMapper categoryMapper,
@@ -64,7 +66,8 @@ public class ContentServiceImpl implements ContentService {
                               CommentService commentService,
                               ContentCacheService cacheService,
                               ContentStatService statService,
-                              ReadingHistoryService readingHistoryService) {
+                              ReadingHistoryService readingHistoryService,
+                              NotificationService notificationService) {
         this.contentMapper = contentMapper;
         this.categoryMapper = categoryMapper;
         this.accessService = accessService;
@@ -73,6 +76,7 @@ public class ContentServiceImpl implements ContentService {
         this.cacheService = cacheService;
         this.statService = statService;
         this.readingHistoryService = readingHistoryService;
+        this.notificationService = notificationService;
     }
 
     // ------------------------------------------------------------------ 查询
@@ -260,14 +264,28 @@ public class ContentServiceImpl implements ContentService {
     @Transactional
     public Response<Void> approve(Long id) {
         ContentDO content = requireExisting(id);
-        return transition(content, "PUBLISHED", null);
+        Response<Void> result = transition(content, "PUBLISHED", null);
+
+        // 审核结果主动告知作者：否则他只能自己去工作台翻状态
+        notificationService.push(content.getCreatorId(), "CONTENT_APPROVED", "内容已通过审核",
+                "《" + content.getTitle() + "》已发布，现在可以在内容库看到了。",
+                "CONTENT", content.getId());
+
+        return result;
     }
 
     @Override
     @Transactional
     public Response<Void> reject(Long id, String reason) {
         ContentDO content = requireExisting(id);
-        return transition(content, "REJECTED", reason);
+        Response<Void> result = transition(content, "REJECTED", reason);
+
+        notificationService.push(content.getCreatorId(), "CONTENT_REJECTED", "内容未通过审核",
+                "《" + content.getTitle() + "》被驳回：" +
+                        (StringUtils.isBlank(reason) ? "管理员未填写原因" : reason),
+                "CONTENT", content.getId());
+
+        return result;
     }
 
     /**
@@ -313,7 +331,11 @@ public class ContentServiceImpl implements ContentService {
         LambdaQueryWrapper<ContentDO> query = new LambdaQueryWrapper<>();
 
         if (creatorId != null) {
+            // 「我的内容」：强制锁定为当前登录用户，忽略请求里传的 creatorId
             query.eq(ContentDO::getCreatorId, creatorId);
+        } else if (req.getCreatorId() != null) {
+            // 创作者公开主页：按创作者筛选，属于公开的查询条件
+            query.eq(ContentDO::getCreatorId, req.getCreatorId());
         }
         if (StringUtils.isNotBlank(forcedStatus)) {
             query.eq(ContentDO::getStatus, forcedStatus.trim().toUpperCase());

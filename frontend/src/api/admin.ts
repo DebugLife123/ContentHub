@@ -1,5 +1,27 @@
 import api from '../axios'
-import type { AdminUser, ApiResponse, Comment, PageResult, SubscriptionPlan } from './types'
+import type { AdminUser, ApiResponse, Comment, CreatorApplication, PageResult, SubscriptionPlan } from './types'
+
+// ---------------------------------------------------------- 创作者申请审核
+
+export function pageCreatorApplications(params: {
+  status?: string
+  pageNum?: number
+  pageSize?: number
+} = {}) {
+  return api.get<ApiResponse<PageResult<CreatorApplication>>>('/admin/creator-applications', { params })
+}
+
+export function creatorApplicationPendingCount() {
+  return api.get<ApiResponse<number>>('/admin/creator-applications/pending-count')
+}
+
+export function approveCreatorApplication(id: number) {
+  return api.post<ApiResponse<void>>(`/admin/creator-applications/${id}/approve`)
+}
+
+export function rejectCreatorApplication(id: number, reason: string) {
+  return api.post<ApiResponse<void>>(`/admin/creator-applications/${id}/reject`, { reason })
+}
 
 // ---------------------------------------------------------- 用户管理（阶段 6 Day 51）
 

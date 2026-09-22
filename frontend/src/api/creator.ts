@@ -1,9 +1,20 @@
 import api from '../axios'
-import type { ApiResponse, CreatorDashboard, CreatorProfile } from './types'
+import type { ApiResponse, CreatorApplication, CreatorDashboard, CreatorProfile } from './types'
 
-/** 申请成为创作者（普通用户 -> 创作者） */
-export function applyCreator() {
-  return api.post<ApiResponse<CreatorProfile>>('/creator/apply')
+/**
+ * 提交创作者申请。
+ *
+ * 注意语义变了：以前调用即获得 CREATOR 角色，现在只是提交一条待审核记录，
+ * 管理员通过之后 `users.role` 才会变成 CREATOR。所以前端必须按
+ * 「未申请 / 待审核 / 已驳回 / 已通过」四种状态分别渲染。
+ */
+export function applyCreator(intro?: string) {
+  return api.post<ApiResponse<CreatorApplication>>('/creator/apply', { intro })
+}
+
+/** 我的最近一条申请；从没申请过时 data 为 null */
+export function getMyCreatorApplication() {
+  return api.get<ApiResponse<CreatorApplication | null>>('/creator/application')
 }
 
 /** 我的创作者资料 */

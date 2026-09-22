@@ -12,25 +12,60 @@
     <div v-else-if="!userInfo" class="empty-state">登录状态已失效，请重新登录。</div>
     <template v-else>
       <div class="profile-grid">
+        <!-- 账号信息 + 编辑入口 -->
         <section class="profile-panel">
           <h3>账号信息</h3>
           <dl class="info-list">
             <div><dt>用户名</dt><dd>{{ userInfo.username }}</dd></div>
             <div><dt>昵称</dt><dd>{{ userInfo.nickname || '未设置' }}</dd></div>
             <div><dt>邮箱</dt><dd>{{ userInfo.email || '未设置' }}</dd></div>
+            <div><dt>简介</dt><dd>{{ userInfo.bio || '未设置' }}</dd></div>
             <div><dt>角色</dt><dd>{{ roleLabel }}</dd></div>
           </dl>
           <div class="panel-actions">
-            <el-button v-if="!isCreator" class="button button-dark" :loading="applying" @click="apply">
-              申请成为创作者 <span>↗</span>
-            </el-button>
-            <el-button v-else class="button button-dark" @click="$router.push('/creator')">
-              进入创作者工作台 <span>↗</span>
-            </el-button>
+            <el-button class="button button-dark" @click="openProfileDialog">编辑资料 <span>↗</span></el-button>
+            <el-button @click="openPasswordDialog">修改密码</el-button>
             <el-button @click="$router.push('/subscriptions')">我的订阅</el-button>
             <el-button @click="handleLogout">退出登录</el-button>
           </div>
-          <p v-if="applyMessage" class="success-text">{{ applyMessage }}</p>
+          <p v-if="actionMessage" :class="messageType === 'error' ? 'error-text' : 'success-text'">
+            {{ actionMessage }}
+          </p>
+        </section>
+
+        <!-- 创作者身份：申请 -> 待审核 -> 通过/驳回 -->
+        <section class="profile-panel">
+          <h3>创作者身份</h3>
+
+          <template v-if="isCreator">
+            <p class="creator-state is-ok">✓ 你已经是创作者，可以发布内容、创建订阅套餐。</p>
+            <div class="panel-actions">
+              <el-button class="button button-dark" @click="$router.push('/creator')">
+                进入创作者工作台 <span>↗</span>
+              </el-button>
+            </div>
+          </template>
+
+          <template v-else-if="application && application.status === 'PENDING'">
+            <p class="creator-state is-pending">
+              ⏳ 申请已提交（{{ application.createTime || '刚刚' }}），等待管理员审核。
+            </p>
+            <p v-if="application.intro" class="creator-intro">申请说明：{{ application.intro }}</p>
+          </template>
+
+          <template v-else>
+            <p v-if="application && application.status === 'REJECTED'" class="creator-state is-rejected">
+              ✗ 上次申请未通过：{{ application.rejectReason || '管理员未填写原因' }}
+            </p>
+            <p v-else class="creator-state">
+              还不是创作者。提交申请后由管理员审核，通过即可发布内容并创建订阅套餐。
+            </p>
+            <div class="panel-actions">
+              <el-button class="button button-dark" @click="applyDialog = true">
+                {{ application && application.status === 'REJECTED' ? '重新申请' : '申请成为创作者' }} <span>↗</span>
+              </el-button>
+            </div>
+          </template>
         </section>
 
         <section class="profile-panel">
@@ -71,7 +106,6 @@
         </div>
       </section>
 
-      <!-- 阅读历史（阶段 5 Day 46） -->
       <section class="favorites">
         <div class="panel-head">
           <h3>阅读历史</h3>
@@ -90,7 +124,6 @@
         </ul>
       </section>
 
-      <!-- 我的评论（阶段 5 Day 45） -->
       <section class="favorites">
         <div class="panel-head">
           <h3>我的评论</h3>
@@ -109,25 +142,85 @@
         </ul>
       </section>
     </template>
+
+    <!-- 编辑资料 -->
+    <el-dialog v-model="profileDialog" title="编辑资料" width="460px">
+      <el-form ref="profileFormRef" :model="profileForm" :rules="profileRules" label-position="top">
+        <el-form-item label="昵称" prop="nickname">
+          <el-input v-model="profileForm.nickname" maxlength="50" placeholder="展示给其他人的名字" />
+        </el-form-item>
+        <el-form-item label="邮箱" prop="email">
+          <el-input v-model="profileForm.email" maxlength="100" placeholder="选填" />
+        </el-form-item>
+        <el-form-item label="头像地址">
+          <el-input v-model="profileForm.avatar" maxlength="255" placeholder="选填，填图片 URL" />
+        </el-form-item>
+        <el-form-item label="个人简介">
+          <el-input v-model="profileForm.bio" type="textarea" :rows="3" maxlength="300" show-word-limit
+                    placeholder="选填" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="profileDialog = false">取消</el-button>
+        <el-button class="button button-dark" :loading="saving" @click="submitProfile">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 修改密码 -->
+    <el-dialog v-model="passwordDialog" title="修改密码" width="420px">
+      <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-position="top">
+        <el-form-item label="原密码" prop="oldPassword">
+          <el-input v-model="passwordForm.oldPassword" type="password" show-password />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="6-32 位" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialog = false">取消</el-button>
+        <el-button class="button button-dark" :loading="saving" @click="submitPassword">保存</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 申请成为创作者 -->
+    <el-dialog v-model="applyDialog" title="申请成为创作者" width="460px">
+      <p class="dialog-hint">
+        提交后由管理员审核，通过后你就能发布内容、创建订阅套餐。写清楚你打算发布什么，能提高通过率。
+      </p>
+      <el-input v-model="applyIntro" type="textarea" :rows="4" maxlength="500" show-word-limit
+                placeholder="例如：我打算发布前端工程与 Java 后端的技术文章，有 3 年相关经验。" />
+      <template #footer>
+        <el-button @click="applyDialog = false">取消</el-button>
+        <el-button class="button button-dark" :loading="applying" @click="submitApply">提交申请</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { applyCreator } from '@/api/creator'
+import type { FormInstance, FormRules } from 'element-plus'
+import { applyCreator, getMyCreatorApplication } from '@/api/creator'
+import { changeMyPassword, updateMyProfile } from '@/api/user'
 import { deleteComment, myComments, myFavorites, myHistory } from '@/api/content'
 import { mySubscriptions } from '@/api/subscription'
 import { useUserStore } from '@/stores/user'
-import type { Comment, ContentItem, ReadingHistory } from '@/api/types'
+import type { Comment, ContentItem, CreatorApplication, ReadingHistory } from '@/api/types'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const loading = ref(true)
+const saving = ref(false)
 const applying = ref(false)
-const applyMessage = ref('')
+const actionMessage = ref('')
+const messageType = ref<'success' | 'error'>('success')
+
 const favorites = ref<ContentItem[]>([])
 const favoriteTotal = ref(0)
 const activeSubCount = ref(0)
@@ -135,20 +228,7 @@ const history = ref<ReadingHistory[]>([])
 const historyTotal = ref(0)
 const comments = ref<Comment[]>([])
 const commentTotal = ref(0)
-
-async function removeMyComment(c: Comment) {
-  const res = await deleteComment(c.id)
-  if (res.data.success) {
-    ElMessage.success('已删除')
-    const again = await myComments(1, 10)
-    if (again.data.success) {
-      comments.value = again.data.data.list
-      commentTotal.value = again.data.data.total
-    }
-  } else {
-    ElMessage.error(res.data.message || '删除失败')
-  }
-}
+const application = ref<CreatorApplication | null>(null)
 
 const userInfo = computed(() => userStore.userInfo)
 const displayName = computed(() => userStore.userInfo?.nickname || userStore.userInfo?.username || '访客')
@@ -169,27 +249,151 @@ const abilities = computed(() => [
   { text: '浏览免费内容', enabled: true, hint: '所有访客都可以' },
   { text: '收藏内容', enabled: true, hint: '登录后即可' },
   { text: '订阅创作者', enabled: true, hint: '模拟支付，即时生效' },
-  { text: '发布与编辑内容', enabled: isCreator.value, hint: '需要创作者身份' },
+  { text: '发布与编辑内容', enabled: isCreator.value, hint: '需要创作者身份（管理员审核后获得）' },
   { text: '审核内容 / 管理分类', enabled: userStore.hasRole('ADMIN'), hint: '需要管理员身份' },
 ])
 
-async function apply() {
-  applying.value = true
-  applyMessage.value = ''
+function flash(text: string, type: 'success' | 'error' = 'success') {
+  actionMessage.value = text
+  messageType.value = type
+  setTimeout(() => (actionMessage.value = ''), 4000)
+}
+
+function errText(e: unknown, fallback: string) {
+  const err = e as { message?: string; response?: { data?: { message?: string } } }
+  return err.response?.data?.message || err.message || fallback
+}
+
+// ---------------------------------------------------------------- 编辑资料
+
+const profileDialog = ref(false)
+const profileFormRef = ref<FormInstance>()
+const profileForm = reactive({ nickname: '', email: '', avatar: '', bio: '' })
+const profileRules: FormRules = {
+  email: [{ type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
+}
+
+function openProfileDialog() {
+  profileForm.nickname = userStore.userInfo?.nickname || ''
+  profileForm.email = userStore.userInfo?.email || ''
+  profileForm.avatar = userStore.userInfo?.avatar || ''
+  profileForm.bio = userStore.userInfo?.bio || ''
+  profileDialog.value = true
+}
+
+async function submitProfile() {
+  if (profileFormRef.value) {
+    const valid = await profileFormRef.value.validate().catch(() => false)
+    if (!valid) return
+  }
+  saving.value = true
   try {
-    const res = await applyCreator()
+    const res = await updateMyProfile({ ...profileForm })
     if (res.data.success) {
-      // 后端已更新角色，但当前 SecurityContext 还是旧角色，必须重新拉一次
+      profileDialog.value = false
       await userStore.fetchCurrentUser()
-      applyMessage.value = '已获得创作者身份，现在可以发布内容了'
+      flash('资料已保存')
     } else {
-      applyMessage.value = res.data.message || '申请失败'
+      flash(res.data.message || '保存失败', 'error')
     }
   } catch (e) {
-    const err = e as { response?: { data?: { message?: string } } }
-    applyMessage.value = err.response?.data?.message || '申请失败'
+    flash(errText(e, '保存失败'), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+// ---------------------------------------------------------------- 修改密码
+
+const passwordDialog = ref(false)
+const passwordFormRef = ref<FormInstance>()
+const passwordForm = reactive({ oldPassword: '', newPassword: '', confirmPassword: '' })
+const passwordRules: FormRules = {
+  oldPassword: [{ required: true, message: '请输入原密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 32, message: '新密码长度需在 6-32 位之间', trigger: 'blur' },
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    {
+      validator: (_rule, value, callback) => {
+        if (value !== passwordForm.newPassword) callback(new Error('两次输入的新密码不一致'))
+        else callback()
+      },
+      trigger: 'blur',
+    },
+  ],
+}
+
+function openPasswordDialog() {
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+  passwordDialog.value = true
+}
+
+async function submitPassword() {
+  if (!passwordFormRef.value) return
+  const valid = await passwordFormRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  saving.value = true
+  try {
+    const res = await changeMyPassword({
+      oldPassword: passwordForm.oldPassword,
+      newPassword: passwordForm.newPassword,
+    })
+    if (res.data.success) {
+      passwordDialog.value = false
+      ElMessage.success('密码已修改，下次登录请使用新密码')
+    } else {
+      flash(res.data.message || '修改失败', 'error')
+    }
+  } catch (e) {
+    flash(errText(e, '修改失败'), 'error')
+  } finally {
+    saving.value = false
+  }
+}
+
+// ---------------------------------------------------------------- 创作者申请
+
+const applyDialog = ref(false)
+const applyIntro = ref('')
+
+async function submitApply() {
+  applying.value = true
+  try {
+    const res = await applyCreator(applyIntro.value.trim() || undefined)
+    if (res.data.success) {
+      applyDialog.value = false
+      applyIntro.value = ''
+      application.value = res.data.data
+      flash('申请已提交，等待管理员审核')
+    } else {
+      flash(res.data.message || '提交失败', 'error')
+    }
+  } catch (e) {
+    flash(errText(e, '提交失败'), 'error')
   } finally {
     applying.value = false
+  }
+}
+
+// ---------------------------------------------------------------- 其它
+
+async function removeMyComment(c: Comment) {
+  const res = await deleteComment(c.id)
+  if (res.data.success) {
+    ElMessage.success('已删除')
+    const again = await myComments(1, 10)
+    if (again.data.success) {
+      comments.value = again.data.data.list
+      commentTotal.value = again.data.data.total
+    }
+  } else {
+    ElMessage.error(res.data.message || '删除失败')
   }
 }
 
@@ -200,6 +404,15 @@ async function handleLogout() {
 
 onMounted(async () => {
   await userStore.fetchCurrentUser()
+
+  // 已经是创作者就不用再问申请状态了
+  if (!isCreator.value) {
+    try {
+      const res = await getMyCreatorApplication()
+      if (res.data.success) application.value = res.data.data
+    } catch { /* 忽略 */ }
+  }
+
   try {
     const fav = await myFavorites(1, 6)
     if (fav.data.success) {
@@ -239,8 +452,21 @@ onMounted(async () => {
 .info-list { margin: 0 0 22px; }
 .info-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .info-list dt { color: var(--muted); font: 11px 'DM Mono', monospace; }
-.info-list dd { margin: 0; text-align: right; }
+.info-list dd { margin: 0; text-align: right; word-break: break-all; }
 .panel-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.creator-state { font-size: 13.5px; line-height: 1.8; color: var(--muted); margin: 0 0 18px; }
+.creator-state.is-ok { color: #4f6b28; }
+.creator-state.is-pending { color: #a8481f; }
+.creator-state.is-rejected { color: #c54a32; }
+.creator-intro {
+  margin: -8px 0 18px;
+  padding: 12px 14px;
+  background: #eeebe4;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+.dialog-hint { margin: 0 0 14px; font-size: 13px; line-height: 1.7; color: var(--muted); }
 .ability-list { list-style: none; margin: 0; padding: 0; }
 .ability-list li { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .ability-list li.disabled { color: var(--muted); }

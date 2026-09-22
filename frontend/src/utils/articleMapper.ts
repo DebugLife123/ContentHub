@@ -76,6 +76,7 @@ export function toArticle(content: ContentItem): Article {
     contentType: contentTypeLabel(content.contentType),
     accessType: content.accessType,
     author: {
+      id: content.creatorId,
       name: `创作者 #${content.creatorId}`,
       bio: 'ContentHub 数字内容创作者',
     },

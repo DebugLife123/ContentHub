@@ -51,6 +51,23 @@ public enum ResponseCodeEnum implements BaseExceptionInterface {
     SKILL_CATEGORY_NAME_EXISTS("20031", "该 Skill 分类名称已存在"),
     SKILL_CATEGORY_IN_USE("20032", "该分类下还有 Skill，无法删除"),
     SKILL_STATUS_ILLEGAL("20033", "当前状态不允许该操作"),
+    // ----------- 创作者申请 / 站内通知 / 个人资料 -----------
+    CREATOR_APPLICATION_NOT_FOUND("20034", "创作者申请不存在"),
+    CREATOR_APPLICATION_EXISTS("20035", "已有一条待审核的申请，请等待管理员处理"),
+    ALREADY_CREATOR("20036", "你已经是创作者了"),
+    APPLICATION_STATUS_ILLEGAL("20037", "该申请当前状态不允许此操作"),
+    OLD_PASSWORD_WRONG("20038", "原密码不正确"),
+    NOTIFICATION_NOT_FOUND("20039", "通知不存在"),
+    // ----------- Skill 评论 -----------
+    SKILL_COMMENT_NOT_FOUND("20040", "评论不存在"),
+    NOT_SKILL_COMMENT_OWNER("20041", "只能操作自己的评论"),
+    // ----------- 订阅终止 / 退款 -----------
+    SUBSCRIPTION_NOT_ACTIVE("20042", "该订阅当前不是生效中，无法操作"),
+    // ----------- 文件上传 -----------
+    FILE_EMPTY("20043", "上传的文件为空"),
+    FILE_TYPE_NOT_ALLOWED("20044", "不支持的文件类型"),
+    FILE_TOO_LARGE("20045", "文件超过大小限制"),
+    FILE_UPLOAD_FAILED("20046", "文件保存失败"),
     SELECT_FAIL("20003","查询数据库时出错");
     // 异常码
     private String errorCode;

@@ -151,6 +151,8 @@ export interface TocItem {
 // ---------------------------------------------------------------- 文章视图模型
 
 export interface ArticleAuthor {
+  /** 创作者用户ID，用于跳转到创作者公开主页 */
+  id?: number
   name: string
   avatar?: string
   bio?: string

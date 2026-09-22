@@ -99,6 +99,8 @@ export interface ContentQuery {
   pageNum?: number
   pageSize?: number
   categoryId?: number | null
+  /** 按创作者筛选，创作者公开主页用 */
+  creatorId?: number | null
   contentType?: string
   keyword?: string
   status?: ContentStatus
@@ -121,6 +123,21 @@ export interface CreatorProfile {
   contentCount?: number
   publishedCount?: number
   createTime?: string
+}
+
+/** 创作者申请（改造：申请 -> 管理员审核 -> 通过才升级角色） */
+export interface CreatorApplication {
+  id: number
+  userId: number
+  username?: string | null
+  nickname?: string | null
+  intro?: string | null
+  /** PENDING / APPROVED / REJECTED */
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  rejectReason?: string | null
+  reviewerId?: number | null
+  reviewTime?: string | null
+  createTime?: string | null
 }
 
 /** 订阅套餐（阶段 4 Day 30） */
