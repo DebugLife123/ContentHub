@@ -171,7 +171,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { formatDate, formatStars, getSkill } from '../../api/skill'
+import { formatDate, formatStars, getSkill, installSkill } from '../../api/skill'
 import type { SkillDetail } from '../../api/types'
 
 const route = useRoute()
@@ -249,6 +249,17 @@ async function handleInstall() {
   } catch {
     // 非 HTTPS 或浏览器不给剪贴板权限时，退化成提示，不假装成功
     ElMessage.warning('浏览器未授予剪贴板权限，请手动复制下方命令')
+  }
+
+  // 计数是附属动作，失败不该盖掉「已复制」的提示——用户要的是命令，不是统计
+  try {
+    const res = await installSkill(skill.value.id)
+    if (res.data.success) {
+      const again = await getSkill(skill.value.id)
+      if (again.data.success) skill.value = again.data.data
+    }
+  } catch {
+    /* 忽略：安装计数失败不影响使用 */
   }
 }
 

@@ -20,6 +20,7 @@ import com.contenthub.web.model.vo.SkillListVO;
 import com.contenthub.web.model.vo.SkillStepVO;
 import com.contenthub.web.model.vo.SkillTeamVO;
 import com.contenthub.web.service.SkillService;
+import com.contenthub.web.service.SkillStatService;
 import com.contenthub.web.service.SubscriptionService;
 import com.contenthub.web.util.CurrentUserUtil;
 import org.apache.commons.lang3.StringUtils;
@@ -59,13 +60,16 @@ public class SkillServiceImpl implements SkillService {
     private final SkillMapper skillMapper;
     private final SkillCategoryMapper categoryMapper;
     private final SubscriptionService subscriptionService;
+    private final SkillStatService skillStatService;
 
     public SkillServiceImpl(SkillMapper skillMapper,
                             SkillCategoryMapper categoryMapper,
-                            SubscriptionService subscriptionService) {
+                            SubscriptionService subscriptionService,
+                            SkillStatService skillStatService) {
         this.skillMapper = skillMapper;
         this.categoryMapper = categoryMapper;
         this.subscriptionService = subscriptionService;
+        this.skillStatService = skillStatService;
     }
 
     // ------------------------------------------------------------------ 公开读
@@ -83,6 +87,22 @@ public class SkillServiceImpl implements SkillService {
             throw new BizException(ResponseCodeEnum.SKILL_NOT_FOUND);
         }
         return Response.success(toDetail(skill, categoryName(skill.getCategoryId()), decideAccess(skill)));
+    }
+
+    @Override
+    public Response<Void> install(Long id) {
+        SkillDO skill = requireExisting(id);
+        if (!PUBLISHED.equals(skill.getStatus())) {
+            throw new BizException(ResponseCodeEnum.SKILL_NOT_FOUND);
+        }
+        // 和详情接口同一套判定：没解锁就不给计数，避免直接打接口刷量
+        Access access = decideAccess(skill);
+        if (!access.full()) {
+            throw new BizException(ResponseCodeEnum.SKILL_NOT_FOUND.getErrorCode(),
+                    access.reason() == null ? "这个 Skill 需要会员解锁后才能安装" : access.reason());
+        }
+        skillStatService.recordInstall(id);
+        return Response.success();
     }
 
     // ------------------------------------------------------------------ 管理端
@@ -336,7 +356,7 @@ public class SkillServiceImpl implements SkillService {
                 .version(skill.getVersion())
                 .license(skill.getLicense())
                 .size(skill.getSize())
-                .downloads(skill.getDownloads())
+                .downloads(downloadsWithPending(skill))
                 .securityLevel(skill.getSecurityLevel())
                 .securityLabel(skill.getSecurityLabel())
                 .submitter(skill.getSubmitter())
@@ -379,6 +399,17 @@ public class SkillServiceImpl implements SkillService {
             return Access.allow();
         }
         return Access.deny("这个 Skill 需要会员解锁，订阅后即可查看完整说明与安装方式");
+    }
+
+    /**
+     * 展示用的下载量 = 库里的值 + Redis 里还没落库的增量。
+     *
+     * <p>不然用户点完安装要等下一次定时同步才看得到数字变化，
+     * 这里和内容详情叠加待同步浏览量的做法保持一致。</p>
+     */
+    private int downloadsWithPending(SkillDO skill) {
+        int stored = skill.getDownloads() == null ? 0 : skill.getDownloads();
+        return (int) (stored + skillStatService.pendingInstalls(skill.getId()));
     }
 
     private String categoryName(Long categoryId) {

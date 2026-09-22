@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,5 +42,11 @@ public class SkillController {
     @Operation(summary = "Skill 详情（仅已上架；无会员权限时不下发安装方式）")
     public Response<SkillDetailVO> detail(@PathVariable Long id) {
         return skillService.findPublishedById(id);
+    }
+
+    @PostMapping("/{id}/install")
+    @Operation(summary = "记录一次安装（需登录；未解锁的付费 Skill 会被拒绝）")
+    public Response<Void> install(@PathVariable Long id) {
+        return skillService.install(id);
     }
 }

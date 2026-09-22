@@ -29,6 +29,12 @@ public final class RedisKeys {
     /** 浏览量增量同步的批次标记：{@code content:view:dirty}，Set 存放待同步的 contentId */
     public static final String VIEW_DIRTY_SET = "content:view:dirty";
 
+    /** Skill 安装量计数：{@code skill:install:{skillId}} -> 待同步到 MySQL 的增量 */
+    public static final String SKILL_INSTALL_PREFIX = "skill:install:";
+
+    /** Skill 安装量增量同步的批次标记：{@code skill:install:dirty} */
+    public static final String SKILL_INSTALL_DIRTY_SET = "skill:install:dirty";
+
     public static String loginToken(String token) {
         return LOGIN_TOKEN_PREFIX + token;
     }
@@ -39,5 +45,10 @@ public final class RedisKeys {
 
     public static String contentView(Long contentId) {
         return CONTENT_VIEW_PREFIX + contentId;
+    }
+
+    /** 参数用 Object 是为了让 Long（业务侧）和 String（从 dirty Set 里取出来的）都能直接用 */
+    public static String skillInstall(Object skillId) {
+        return SKILL_INSTALL_PREFIX + skillId;
     }
 }

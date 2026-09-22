@@ -27,6 +27,14 @@ public interface SkillService {
      */
     Response<SkillDetailVO> findPublishedById(Long id);
 
+    /**
+     * 记录一次安装。
+     *
+     * <p>与详情接口共用同一套鉴权：没解锁的付费 Skill 不许计数，
+     * 否则直接打接口就能刷安装量，也等于绕过了会员限制。</p>
+     */
+    Response<Void> install(Long id);
+
     // ---------------------------------------------------------------- 管理端
 
     /** 管理端分页（含草稿与已下架，可按状态筛选） */

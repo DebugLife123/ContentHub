@@ -88,6 +88,8 @@ public class WebSecurityConfig {
                         .requestMatchers("/notifications", "/notifications/**").authenticated()
                         // 文件上传：登录即可（头像、封面、正文附件都要用）
                         .requestMatchers(HttpMethod.POST, "/files/upload").authenticated()
+                        // Skill 安装计数：必须登录，写在下面 GET /skills/** 放行之前
+                        .requestMatchers(HttpMethod.POST, "/skills/*/install").authenticated()
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/subscriptions/**").authenticated()
 

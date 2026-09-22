@@ -34,6 +34,16 @@ export function listSkillCategories() {
   return api.get<ApiResponse<SkillCategory[]>>('/skill-categories')
 }
 
+/**
+ * 记录一次安装。
+ *
+ * 计数在服务端做（Redis 累加 + 定时落库），详情接口返回的 downloads 已经是
+ * 「库里的值 + 待同步增量」，所以点完安装重新拉一次详情就能看到数字变化。
+ */
+export function installSkill(id: number | string) {
+  return api.post<ApiResponse<void>>(`/skills/${id}/install`)
+}
+
 // ---------------------------------------------------------------- 管理端
 
 export function pageSkillsForAdmin(query: SkillQuery = {}) {
