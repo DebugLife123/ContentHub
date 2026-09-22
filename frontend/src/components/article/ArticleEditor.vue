@@ -18,6 +18,15 @@
         <button type="button" title="代码块" @click="insertBlock('```java UserService.java\n\n```', 25)">{ }</button>
         <button type="button" title="表格" @click="insertBlock('| 列 A | 列 B | 列 C |\n| --- | --- | --- |\n|  |  |  |')">▦</button>
         <button type="button" title="图片" @click="insertBlock('![图片说明](https://)')">img</button>
+        <!-- 上传：拿到地址后直接把对应指令插到光标处，不让用户自己拼 URL -->
+        <button type="button" :disabled="uploading" title="上传图片并插入" @click="imageInput?.click()">
+          {{ uploading ? '…' : '⬆img' }}
+        </button>
+        <button type="button" :disabled="uploading" title="上传附件并插入" @click="fileInput?.click()">
+          {{ uploading ? '…' : '⬆file' }}
+        </button>
+        <input ref="imageInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" hidden @change="onPickImage">
+        <input ref="fileInput" type="file" hidden @change="onPickFile">
         <el-dropdown trigger="click" @command="insertCallout">
           <button type="button" title="提示框" @click.prevent>:::⌄</button>
           <template #dropdown>
@@ -114,7 +123,9 @@
 
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import { estimateReadTime, extractToc, parseArticleBody } from '@/utils/articleParser'
+import { uploadFile, type UploadedFile } from '@/api/file'
 import ArticleBody from './ArticleBody.vue'
 
 const props = withDefaults(defineProps<{
@@ -190,8 +201,50 @@ function insertBlock(snippet: string, caretOffset?: number) {
   restoreCaret(el, caret)
 }
 
-function insertLink() {
-  const el = textareaRef.value
+// ------------------------------------------------------------------ 上传
+
+const uploading = ref(false)
+const imageInput = ref<HTMLInputElement>()
+const fileInput = ref<HTMLInputElement>()
+
+async function onPickImage(e: Event) {
+  await handlePick(e, (r) => r.markdownImage, '图片已插入正文')
+}
+
+async function onPickFile(e: Event) {
+  await handlePick(e, (r) => r.markdownFile, '附件已插入正文')
+}
+
+/**
+ * 上传后把对应指令插到光标处。
+ *
+ * <p>无论成败都要清空 input：不清的话第二次选同一个文件不会触发 change 事件，
+ * 用户会以为「点了没反应」。</p>
+ */
+async function handlePick(e: Event, pick: (r: UploadedFile) => string, okText: string) {
+  const input = e.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+
+  uploading.value = true
+  try {
+    const res = await uploadFile(file)
+    if (res.data.success) {
+      insertBlock(pick(res.data.data))
+      ElMessage.success(okText)
+    } else {
+      ElMessage.error(res.data.message || '上传失败')
+    }
+  } catch (err) {
+    const e2 = err as { message?: string }
+    ElMessage.error(e2.message || '上传失败')
+  } finally {
+    uploading.value = false
+    input.value = ''
+  }
+}
+
+function insertLink() {  const el = textareaRef.value
   if (!el) return
   const { selectionStart: start, selectionEnd: end, value } = el
   const selected = value.slice(start, end) || '链接文字'

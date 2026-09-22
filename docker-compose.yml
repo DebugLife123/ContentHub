@@ -88,6 +88,9 @@ services:
     # 避免绕过反向代理直接打 8084
     expose:
       - "8084"
+    volumes:
+      # 用户上传的文件放在命名卷里，重建镜像不会把它们一起删掉
+      - contenthub-uploads:/app/uploads
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "-", "http://127.0.0.1:8084/api/contents/page"]
       interval: 15s
@@ -114,3 +117,4 @@ services:
 volumes:
   contenthub-mysql-data:
   contenthub-redis-data:
+  contenthub-uploads:

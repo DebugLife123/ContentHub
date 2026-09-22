@@ -12,6 +12,7 @@ import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -165,6 +166,29 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE)
                 .body(Response.fail(ResponseCodeEnum.UNSUPPORTED_MEDIA_TYPE.getErrorCode(),
                         String.format("不支持的请求内容类型 %s，请使用 application/json", e.getContentType())));
+    }
+
+    /**
+     * 上传文件超过 multipart 限制。
+     *
+     * <p>这个异常是 Tomcat/Spring 在解析 multipart 阶段抛的，默认行为是直接重置连接，
+     * 调用方只会看到一个网络错误（前端表现成「点了没反应」）。配合
+     * {@code server.tomcat.max-swallow-size: -1}（让 Tomcat 把剩余请求体读完而不是断开）
+     * 才能把话说明白。</p>
+     */
+    @ExceptionHandler({MaxUploadSizeExceededException.class})
+    @ResponseBody
+    public ResponseEntity<Response<Object>> handleMaxUploadSize(HttpServletRequest request,
+                                                               MaxUploadSizeExceededException e) {
+        log.warn("上传超过限制 {} -> {} bytes", request.getRequestURI(), e.getMaxUploadSize());
+        // getMaxUploadSize() 在限制来自 spring.servlet.multipart.max-file-size 时会是 -1，
+        // 直接换算会得到「超过 0MB」这种自相矛盾的提示，所以这里不给具体数字
+        long max = e.getMaxUploadSize();
+        String message = max > 0
+                ? "文件超过 " + (max / 1024 / 1024) + "MB 限制"
+                : "上传的文件超过服务端大小限制";
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(Response.fail(ResponseCodeEnum.FILE_TOO_LARGE.getErrorCode(), message));
     }
 
     /**

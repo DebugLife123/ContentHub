@@ -27,3 +27,6 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+
+### 上传的文件（本地开发时落在 backend/uploads）###
+uploads/

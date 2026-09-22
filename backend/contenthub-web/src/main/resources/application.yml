@@ -5,10 +5,29 @@ server:
   # 注意：API 文档地址因此变为 http://127.0.0.1:8084/api/doc.html
   servlet:
     context-path: /api
+  tomcat:
+    # 请求体超过 multipart 限制时，Tomcat 默认会直接断开连接，调用方只看到网络错误
+    # （前端表现成「点了没反应」）。设成 -1 让它把剩余请求体读完，
+    # 这样 GlobalExceptionHandler 里的 MaxUploadSizeExceededException 分支才能返回 413。
+    max-swallow-size: -1
 
 spring:
   profiles:
     active: dev
+  servlet:
+    multipart:
+      # 单文件上限，与 contenthub.upload.max-size-bytes 保持一致
+      max-file-size: 50MB
+      # 留出富余：一次请求可能同时带多个表单字段
+      max-request-size: 60MB
+
+# 文件上传（见 UploadProperties）
+contenthub:
+  upload:
+    dir: ./uploads
+    # 必须带 context-path，因为 Markdown 里的地址是浏览器直接请求的，不走 axios 的 baseURL
+    url-prefix: /api/files
+    max-size-bytes: 52428800
 
 jwt:
   # 签发人

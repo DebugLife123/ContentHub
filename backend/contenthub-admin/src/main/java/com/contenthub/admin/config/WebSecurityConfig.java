@@ -86,6 +86,8 @@ public class WebSecurityConfig {
                         .requestMatchers("/users/me", "/users/me/**").authenticated()
                         // 站内通知：只能看自己的，归属在 Service 里再校验一次
                         .requestMatchers("/notifications", "/notifications/**").authenticated()
+                        // 文件上传：登录即可（头像、封面、正文附件都要用）
+                        .requestMatchers(HttpMethod.POST, "/files/upload").authenticated()
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/subscriptions/**").authenticated()
 
@@ -97,6 +99,8 @@ public class WebSecurityConfig {
                         // Skill 商城：读公开，写操作走下面的 /admin/** 规则
                         .requestMatchers(HttpMethod.GET, "/skills", "/skills/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/skill-categories").permitAll()
+                        // 已上传的文件：正文里的图片/附件要能被匿名访客加载
+                        .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
 
                         // ---------- 分类写操作仅管理员 ----------
                         .requestMatchers(HttpMethod.POST, "/categories").hasRole("ADMIN")

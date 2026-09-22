@@ -36,6 +36,11 @@ spring:
           min-idle: 0
           max-wait: 3000ms
 
+# 容器环境把上传目录放到挂载卷上，重建镜像不会把用户上传的文件一起删掉
+contenthub:
+  upload:
+    dir: /app/uploads
+
 # 容器环境关闭 API 文档，减少对外暴露面
 springdoc:
   api-docs:

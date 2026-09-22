@@ -38,7 +38,11 @@ RUN apk add --no-cache tzdata && \
 # 以非 root 用户运行
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /build/contenthub-web/target/contenthub-web-*.jar app.jar
-RUN chown app:app app.jar
+
+# 上传目录必须先在镜像里建好并改属主：
+# 空命名卷挂上来时会继承镜像里这个目录的属主，否则卷是 root 所有，
+# app 用户写不进去，上传会直接失败。
+RUN mkdir -p /app/uploads && chown -R app:app /app
 USER app
 
 EXPOSE 8084
