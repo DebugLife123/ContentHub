@@ -364,6 +364,37 @@ PUBLISHED       --offline--> OFFLINE（前台立刻消失）
 | GET | `/api/skills/{id}` | 公开 | Skill 详情（仅已上架；无会员权限时不下发安装方式） |
 | GET | `/api/skill-categories` | 公开 | Skill 分类列表（仅启用中） |
 
+### 创作者申请 / 通知 / 资料 / 上传
+
+| 方法 | 路径 | 权限 | 说明 |
+|---|---|---|---|
+| POST | `/api/creator/apply` | 登录 | 提交创作者申请（进入待审核，**不再调用即提权**） |
+| GET | `/api/creator/application` | 登录 | 我的最近一条申请，没申请过返回 null |
+| GET | `/api/admin/creator-applications` | ADMIN | 申请列表（默认只给待审核） |
+| POST | `/api/admin/creator-applications/{id}/approve` | ADMIN | 通过：角色升为 CREATOR 并补建创作者资料 |
+| POST | `/api/admin/creator-applications/{id}/reject` | ADMIN | 驳回（需填原因，会通知申请人） |
+| PUT | `/api/users/me` | 登录 | 修改昵称 / 头像 / 邮箱 / 简介 |
+| PUT | `/api/users/me/password` | 登录 | 修改密码（校验原密码） |
+| GET | `/api/notifications` | 登录 | 我的通知（`unreadOnly=true` 只看未读） |
+| GET | `/api/notifications/unread-count` | 登录 | 未读条数（顶栏角标） |
+| POST | `/api/notifications/{id}/read`、`/read-all` | 登录 | 标记已读 |
+| POST | `/api/files/upload` | 登录 | 上传文件（白名单扩展名 + 50MB 上限） |
+| GET | `/api/files/**` | 公开 | 读取已上传文件（正文里的图片/附件） |
+| POST | `/api/skills/{id}/install` | 登录 | 记录一次安装（未解锁的付费 Skill 会被拒） |
+| GET | `/api/skills/{id}/comments` | 公开 | Skill 评论（只返回正常状态） |
+| POST | `/api/skills/{id}/comments` | 登录 | 发表评论（Skill 必须已上架） |
+| DELETE | `/api/skill-comments/{id}` | 登录 | 删除评论（本人或管理员） |
+| GET | `/api/skill-comments/mine` | 登录 | 我的 Skill 评论 |
+| GET | `/api/admin/skill-comments` | ADMIN | Skill 评论管理（含已隐藏） |
+| PUT | `/api/admin/skill-comments/{id}/status` | ADMIN | 隐藏 / 恢复 |
+| POST | `/api/subscriptions/{id}/cancel` | 登录 | 提前终止（立即失去访问权限） |
+| POST | `/api/subscriptions/{id}/refund` | 登录 | 模拟退款（置为 REFUNDED） |
+| GET | `/api/creator/revenue` | CREATOR / ADMIN | 创作者收益（按套餐 / 按月 / 最近订单） |
+
+> **收益率口径**：已支付且**未退款**的订阅金额。提前终止（`CANCELED`）仍计入，
+> 只有退款（`REFUNDED`）才从收益里扣掉，且已退款金额单独展示，
+> 避免把累计收益误读成毛收入。
+
 ### 订阅
 
 | 方法 | 路径 | 权限 | 说明 |
