@@ -52,10 +52,10 @@
   --art-fs-small: 14px;
   --art-fs-code: 13.5px;
 
-  // 字体族
-  --art-font-ui: Manrope, 'Microsoft YaHei', sans-serif;
-  --art-font-serif: 'Noto Serif SC', 'Songti SC', serif;
-  --art-font-mono: 'DM Mono', 'JetBrains Mono', Consolas, monospace;
+  // 字体族（引用 tokens.css 的全站字体栈，拉丁字体自托管、中文走系统字体）
+  --art-font-ui: var(--font-ui);
+  --art-font-serif: var(--font-serif);
+  --art-font-mono: var(--font-mono);
 }
 
 // ------------------------------------------------------------------ 布局

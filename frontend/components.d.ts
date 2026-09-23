@@ -10,7 +10,10 @@ declare module 'vue' {
     AdminBoot: typeof import('./src/components/admin/AdminBoot.vue')['default']
     AdminLayout: typeof import('./src/components/admin/AdminLayout.vue')['default']
     AdminPageHeader: typeof import('./src/components/admin/AdminPageHeader.vue')['default']
+    AppEmpty: typeof import('./src/components/state/AppEmpty.vue')['default']
+    AppError: typeof import('./src/components/state/AppError.vue')['default']
     AppHeader: typeof import('./src/components/AppHeader.vue')['default']
+    AppSkeleton: typeof import('./src/components/state/AppSkeleton.vue')['default']
     ArticleBody: typeof import('./src/components/article/ArticleBody.vue')['default']
     ArticleComments: typeof import('./src/components/article/ArticleComments.vue')['default']
     ArticleEditor: typeof import('./src/components/article/ArticleEditor.vue')['default']
@@ -52,6 +55,7 @@ declare module 'vue' {
     ElRadioGroup: typeof import('element-plus/es')['ElRadioGroup']
     ElSelect: typeof import('element-plus/es')['ElSelect']
     InlineText: typeof import('./src/components/article/InlineText.vue')['default']
+    RouteProgress: typeof import('./src/components/RouteProgress.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
   }

@@ -341,7 +341,7 @@
   color: var(--ink);
 
   & em {
-    font-family: 'Noto Serif SC', serif;
+    font-family: var(--font-serif);
     font-style: normal;
     font-weight: 600;
     color: var(--art-accent, #c14e1d);
@@ -651,7 +651,7 @@
 
   & .el-button {
     border-radius: 0;
-    font-family: 'DM Mono', monospace;
+    font-family: var(--font-mono);
     font-size: 12px;
     letter-spacing: 0.02em;
   }

@@ -30,8 +30,26 @@
       <el-button class="button button-dark" @click="applyFilters">筛选</el-button>
     </div>
 
-    <div v-if="loading" class="empty-state">正在加载…</div>
-    <div v-else-if="!items.length" class="empty-state">没有符合条件的内容。</div>
+    <!--
+      三态分离（改造前只有「正在加载…」和一句「没有符合条件的内容」）：
+      请求失败以前被 catch 吞掉、把列表置空，于是「网络断了」和「确实没数据」
+      在界面上长得一模一样，用户既不知道发生了什么，也没有重试的入口。
+    -->
+    <AppSkeleton v-if="loading" variant="cards" :count="6" />
+
+    <AppError
+      v-else-if="error"
+      :message="error"
+      :retrying="loading"
+      @retry="load"
+    />
+
+    <AppEmpty
+      v-else-if="!items.length"
+      :filtered="hasFilter"
+      @reset="resetFilters"
+    />
+
     <div v-else class="content-grid">
       <article v-for="item in items" :key="item.id" class="content-card" @click="$router.push(`/content/${item.id}`)">
         <!-- 创作者上传过封面就用图片；没上传则回落到按 id 生成的色块 + 标题文字 -->
@@ -58,7 +76,7 @@
       </article>
     </div>
 
-    <div class="pager">
+    <div v-if="!loading && !error && items.length" class="pager">
       <el-pagination
         layout="prev, pager, next, total"
         :total="total"
@@ -72,15 +90,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { pageContents } from '../api/content'
 import { listCategories } from '../api/category'
 import type { Category, ContentItem } from '../api/types'
+import AppSkeleton from '../components/state/AppSkeleton.vue'
+import AppEmpty from '../components/state/AppEmpty.vue'
+import AppError from '../components/state/AppError.vue'
 
 const route = useRoute()
 
 const loading = ref(true)
+const error = ref('')
 const items = ref<ContentItem[]>([])
 const total = ref(0)
 const categories = ref<Category[]>([])
@@ -92,6 +114,9 @@ const filters = reactive({
   keyword: '',
 })
 
+/** 有筛选条件时，空结果要归因到「条件太窄」而不是「这里本来就没东西」 */
+const hasFilter = computed(() => filters.categoryId !== null || filters.keyword.trim() !== '')
+
 const themes = ['theme-orange', 'theme-lilac', 'theme-ink', 'theme-yellow']
 function themeOf(id: number) {
   return themes[id % themes.length]
@@ -102,6 +127,7 @@ function coverText(title: string) {
 
 async function load() {
   loading.value = true
+  error.value = ''
   try {
     const res = await pageContents({
       pageNum: filters.pageNum,
@@ -112,10 +138,16 @@ async function load() {
     if (res.data.success) {
       items.value = res.data.data.list
       total.value = res.data.data.total
+    } else {
+      items.value = []
+      total.value = 0
+      error.value = res.data.message || '服务端没有返回数据。'
     }
   } catch {
+    // 失败时保留「加载失败」这个事实，不要伪装成空列表
     items.value = []
     total.value = 0
+    error.value = '没能取到内容列表，请检查网络后重试。'
   } finally {
     loading.value = false
   }
@@ -130,6 +162,13 @@ function applyFilters() {
 /** 点击顶部栏目：切换分类并立刻重新查询 */
 function selectCategory(id: number | null) {
   filters.categoryId = id
+  applyFilters()
+}
+
+/** 空状态里的「清空筛选条件」 */
+function resetFilters() {
+  filters.categoryId = null
+  filters.keyword = ''
   applyFilters()
 }
 
@@ -152,6 +191,7 @@ onMounted(async () => {
     const res = await listCategories()
     if (res.data.success) categories.value = res.data.data
   } catch {
+    // 栏目加载失败不影响主列表，静默降级为「只有全部内容」一个入口
     categories.value = []
   }
   await load()

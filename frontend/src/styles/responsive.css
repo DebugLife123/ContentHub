@@ -1,0 +1,119 @@
+/* ==========================================================================
+   ContentHub · 移动端适配
+   --------------------------------------------------------------------------
+   必须在所有页面样式之后引入：这里全部是覆盖规则，
+   靠源码顺序压过上面各文件里的同名声明。
+   断点：≤800px 单栏。
+   ========================================================================== */
+
+@media (max-width: 800px) {
+  /* ---- 版心与顶栏 ---- */
+  .content-width,
+  .topbar-inner,
+  .footer-inner {
+    width: calc(100% - var(--page-gutter-sm));
+  }
+
+  .main-nav {
+    display: none;
+  }
+
+  /* ---- 首页 Hero ---- */
+  .hero {
+    padding-top: 60px;
+  }
+
+  .hero-copy {
+    width: 100%;
+  }
+
+  .hero h1 {
+    font-size: 52px;
+  }
+
+  .hero-note {
+    display: none;
+  }
+
+  .hero-visual {
+    position: relative;
+    right: auto;
+    top: auto;
+    width: 100%;
+    height: 390px;
+    margin-top: 45px;
+  }
+
+  .card-main {
+    left: 10%;
+  }
+
+  .section-heading {
+    display: block;
+  }
+
+  .heading-aside {
+    margin-top: 25px;
+  }
+
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .creator-banner {
+    display: block;
+    padding: 40px 28px;
+  }
+
+  .creator-banner h2 {
+    font-size: 43px;
+  }
+
+  .creator-banner > p {
+    margin: 25px 0;
+  }
+
+  /* ---- 登录 / 注册 ---- */
+  .auth-page {
+    display: block;
+    padding: 80px 0;
+  }
+
+  .auth-intro {
+    padding: 0 0 45px;
+  }
+
+  /* ---- 工作台 ---- */
+  .dashboard-head {
+    display: block;
+  }
+
+  .dashboard-head .button {
+    margin-top: 25px;
+  }
+
+  .metric-grid,
+  .studio-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* ---- 内容详情（旧版） ---- */
+  .detail-layout {
+    display: block;
+    padding: 50px 0 0;
+  }
+
+  .detail-page h1 {
+    font-size: 48px;
+  }
+
+  .detail-aside {
+    margin-top: 55px;
+  }
+
+  /* ---- 页脚 ---- */
+  .footer-inner {
+    display: block;
+    line-height: 2.2;
+  }
+}

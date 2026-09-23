@@ -1,35 +1,17 @@
-import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import type { Role } from '@/api/types'
 
-import Home from '../views/Home.vue'
-import ContentList from '../views/ContentList.vue'
-import ContentDetail from '../views/ContentDetail.vue'
-import Login from '../views/Login.vue'
-import Register from '../views/Register.vue'
-import Profile from '../views/Profile.vue'
-import Notifications from '../views/Notifications.vue'
-import Plans from '../views/subscription/Plans.vue'
-import MySubscriptions from '../views/subscription/MySubscriptions.vue'
-import CreatorDashboard from '../views/CreatorDashboard.vue'
-import CreatorProfile from '../views/creator/Profile.vue'
-import CreatorPlans from '../views/creator/Plans.vue'
-import CreatorRevenue from '../views/creator/Revenue.vue'
-import EditContent from '../views/creator/EditContent.vue'
-import CategoryManage from '../views/admin/CategoryManage.vue'
-import ContentReview from '../views/admin/ContentReview.vue'
-import AdminUsers from '../views/admin/Users.vue'
-import AdminComments from '../views/admin/Comments.vue'
-import AdminPlans from '../views/admin/Plans.vue'
-import AdminOverview from '../views/admin/Overview.vue'
-import AdminLayout from '../components/admin/AdminLayout.vue'
-import SkillManage from '../views/admin/SkillManage.vue'
-import SkillEdit from '../views/admin/SkillEdit.vue'
-import SkillList from '../views/skill/SkillList.vue'
-import SkillDetail from '../views/skill/SkillDetail.vue'
-import CreatorApplications from '../views/admin/CreatorApplications.vue'
-import SkillComments from '../views/admin/SkillComments.vue'
-import CreatorPublic from '../views/CreatorPublic.vue'
+/*
+ * 所有页面都改成动态 import（路由级懒加载）。
+ *
+ * 改造前这里是 27 个静态 import，Vite 会把所有页面打进同一个 chunk：
+ * 游客打开首页也要先下载整个管理后台的代码（实测单文件 1.09MB）。
+ * 改成动态 import 后每个页面独立成块，只有真正访问时才下载。
+ *
+ * App.vue / AppHeader.vue / AdminLayout.vue 这类「外壳」仍可静态引入，
+ * 但它们同样被路由引用，一并懒加载即可。
+ */
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -44,59 +26,67 @@ declare module 'vue-router' {
 }
 
 const routes: RouteRecordRaw[] = [
-  { path: '/', component: Home, meta: { title: '发现内容' } },
-  { path: '/contents', component: ContentList, meta: { title: '内容库' } },
-  { path: '/content/:id', component: ContentDetail, meta: { title: '内容详情' } },
+  { path: '/', component: () => import('../views/Home.vue'), meta: { title: '发现内容' } },
+  { path: '/contents', component: () => import('../views/ContentList.vue'), meta: { title: '内容库' } },
+  { path: '/content/:id', component: () => import('../views/ContentDetail.vue'), meta: { title: '内容详情' } },
   // 创作者公开主页（后端已有 GET /creators/{userId}，以前没有页面用它）
-  { path: '/creators/:userId', component: CreatorPublic, meta: { title: '创作者主页' } },
-  { path: '/login', component: Login, meta: { title: '登录' } },
-  { path: '/register', component: Register, meta: { title: '注册' } },
+  { path: '/creators/:userId', component: () => import('../views/CreatorPublic.vue'), meta: { title: '创作者主页' } },
+  { path: '/login', component: () => import('../views/Login.vue'), meta: { title: '登录' } },
+  { path: '/register', component: () => import('../views/Register.vue'), meta: { title: '注册' } },
 
   // ---------- 订阅方案（公开可看，购买需登录） ----------
-  { path: '/plans', component: Plans, meta: { title: '订阅方案' } },
+  { path: '/plans', component: () => import('../views/subscription/Plans.vue'), meta: { title: '订阅方案' } },
 
-  // ---------- Skill 商城（数据仍是 mock，见 api/skill.ts） ----------
-  { path: '/skills', component: SkillList, meta: { title: 'Skill 商城' } },
-  { path: '/skills/:id', component: SkillDetail, meta: { title: 'Skill 详情' } },
+  // ---------- Skill 商城 ----------
+  { path: '/skills', component: () => import('../views/skill/SkillList.vue'), meta: { title: 'Skill 商城' } },
+  { path: '/skills/:id', component: () => import('../views/skill/SkillDetail.vue'), meta: { title: 'Skill 详情' } },
 
   // ---------- 需要登录 ----------
-  { path: '/profile', component: Profile, meta: { title: '个人中心', requiresAuth: true } },
-  { path: '/notifications', component: Notifications, meta: { title: '站内通知', requiresAuth: true } },
+  {
+    path: '/profile',
+    component: () => import('../views/Profile.vue'),
+    meta: { title: '个人中心', requiresAuth: true },
+  },
+  {
+    path: '/notifications',
+    component: () => import('../views/Notifications.vue'),
+    meta: { title: '站内通知', requiresAuth: true },
+  },
   {
     path: '/subscriptions',
-    component: MySubscriptions,
+    component: () => import('../views/subscription/MySubscriptions.vue'),
     meta: { title: '我的订阅', requiresAuth: true },
   },
 
   // ---------- 创作者 ----------
   {
     path: '/creator',
-    component: CreatorDashboard,
+    component: () => import('../views/CreatorDashboard.vue'),
     meta: { title: '创作者工作台', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
   {
     path: '/creator/profile',
-    component: CreatorProfile,
+    component: () => import('../views/creator/Profile.vue'),
     meta: { title: '创作者资料', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
   {
     path: '/creator/plans',
-    component: CreatorPlans,
+    component: () => import('../views/creator/Plans.vue'),
     meta: { title: '订阅套餐管理', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
   {
     path: '/creator/revenue',
-    component: CreatorRevenue,
+    component: () => import('../views/creator/Revenue.vue'),
     meta: { title: '创作者收益', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
   {
     path: '/creator/contents/new',
-    component: EditContent,
+    component: () => import('../views/creator/EditContent.vue'),
     meta: { title: '发布内容', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
   {
     path: '/creator/contents/:id/edit',
-    component: EditContent,
+    component: () => import('../views/creator/EditContent.vue'),
     meta: { title: '编辑内容', requiresAuth: true, roles: ['CREATOR', 'ADMIN'] },
   },
 
@@ -105,29 +95,60 @@ const routes: RouteRecordRaw[] = [
   // 因此这里路径与以前完全一致（/admin/contents 等），已有链接无需改动。
   {
     path: '/admin',
-    component: AdminLayout,
+    component: () => import('../components/admin/AdminLayout.vue'),
     meta: { title: '管理后台', layout: 'admin', requiresAuth: true, roles: ['ADMIN'] },
     children: [
-      { path: '', component: AdminOverview, meta: { title: '控制台概览' } },
-      { path: 'contents', component: ContentReview, meta: { title: '内容审核' } },
-      { path: 'creator-applications', component: CreatorApplications, meta: { title: '创作者申请' } },
-      { path: 'comments', component: AdminComments, meta: { title: '评论管理' } },
-      { path: 'skill-comments', component: SkillComments, meta: { title: 'Skill 评论管理' } },
-      { path: 'skills', component: SkillManage, meta: { title: 'Skill 商城管理' } },
-      { path: 'skills/new', component: SkillEdit, meta: { title: '新增 Skill' } },
-      { path: 'skills/:id/edit', component: SkillEdit, meta: { title: '编辑 Skill' } },
-      { path: 'users', component: AdminUsers, meta: { title: '用户管理' } },
-      { path: 'categories', component: CategoryManage, meta: { title: '分类管理' } },
-      { path: 'plans', component: AdminPlans, meta: { title: '套餐管理' } },
+      { path: '', component: () => import('../views/admin/Overview.vue'), meta: { title: '控制台概览' } },
+      { path: 'contents', component: () => import('../views/admin/ContentReview.vue'), meta: { title: '内容审核' } },
+      {
+        path: 'creator-applications',
+        component: () => import('../views/admin/CreatorApplications.vue'),
+        meta: { title: '创作者申请' },
+      },
+      { path: 'comments', component: () => import('../views/admin/Comments.vue'), meta: { title: '评论管理' } },
+      {
+        path: 'skill-comments',
+        component: () => import('../views/admin/SkillComments.vue'),
+        meta: { title: 'Skill 评论管理' },
+      },
+      { path: 'skills', component: () => import('../views/admin/SkillManage.vue'), meta: { title: 'Skill 商城管理' } },
+      { path: 'skills/new', component: () => import('../views/admin/SkillEdit.vue'), meta: { title: '新增 Skill' } },
+      {
+        path: 'skills/:id/edit',
+        component: () => import('../views/admin/SkillEdit.vue'),
+        meta: { title: '编辑 Skill' },
+      },
+      { path: 'users', component: () => import('../views/admin/Users.vue'), meta: { title: '用户管理' } },
+      { path: 'categories', component: () => import('../views/admin/CategoryManage.vue'), meta: { title: '分类管理' } },
+      { path: 'plans', component: () => import('../views/admin/Plans.vue'), meta: { title: '套餐管理' } },
     ],
   },
 
-  { path: '/:pathMatch(.*)*', redirect: '/' },
+  /*
+   * 404。
+   * 改造前这里是 `redirect: '/'`，用户输错地址会莫名其妙回到首页，
+   * 既看不出发生了什么，也没法自己纠正。现在给一个真正的 404 页面。
+   */
+  {
+    path: '/:pathMatch(.*)*',
+    component: () => import('../views/NotFound.vue'),
+    meta: { title: '页面不存在' },
+  },
 ]
 
 const router = createRouter({
-  history: createWebHashHistory(),
+  /*
+   * history 模式（原来是 createWebHashHistory，地址是 /#/contents）。
+   * hash 地址对分享、埋点、SEO 都不友好，成熟产品基本都用 history 模式。
+   * 依赖服务端把未匹配的路径回退到 index.html —— nginx.conf 里已有
+   * `try_files $uri $uri/ /index.html;`，无需额外配置。
+   */
+  history: createWebHistory(),
   routes,
+  /** 切换路由回到页首；浏览器前进/后退时恢复原位置 */
+  scrollBehavior(_to, _from, savedPosition) {
+    return savedPosition ?? { top: 0 }
+  },
 })
 
 /**
@@ -162,7 +183,7 @@ router.beforeEach(async (to) => {
 })
 
 router.afterEach((to) => {
-  document.title = `${to.meta.title || 'ContentHub'} · ContentHub`
+  document.title = to.meta.title ? `${to.meta.title} · ContentHub` : 'ContentHub · 数字内容订阅平台'
 })
 
 export default router

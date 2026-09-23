@@ -1,0 +1,121 @@
+/* ==========================================================================
+   ContentHub · 站点外壳
+   --------------------------------------------------------------------------
+   应用骨架、顶栏、页脚。这些类由 App.vue / AppHeader.vue 使用。
+   ========================================================================== */
+
+.app-shell {
+  min-height: 100vh;
+  background: var(--paper);
+}
+
+.content-width {
+  width: min(var(--content-width), calc(100% - var(--page-gutter)));
+  margin: 0 auto;
+}
+
+/* -------------------------------------------------------------------- 顶栏 */
+.topbar {
+  height: 82px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(245, 242, 236, 0.9);
+  backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 5;
+}
+
+.topbar-inner {
+  width: min(var(--content-width-wide), calc(100% - var(--page-gutter)));
+  height: 100%;
+  margin: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+
+.brand-mark span span {
+  font-weight: 400;
+}
+
+.brand-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--orange);
+  display: inline-block;
+  box-shadow: 8px -4px 0 var(--lime);
+}
+
+.main-nav {
+  display: flex;
+  gap: 32px;
+  margin-left: 60px;
+}
+
+.main-nav a,
+.login-link {
+  font: 500 12px var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.main-nav a:hover,
+.main-nav .router-link-active {
+  color: var(--ink);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.creator-cta {
+  background: var(--ink);
+  color: #fff;
+  text-decoration: none;
+  padding: 13px 17px;
+  font: 500 11px var(--font-mono);
+}
+
+.creator-cta span {
+  margin-left: 16px;
+  color: var(--orange);
+}
+
+/* -------------------------------------------------------------------- 主体 */
+.app-main {
+  min-height: calc(100vh - 145px);
+}
+
+/* -------------------------------------------------------------------- 页脚 */
+.site-footer {
+  border-top: 1px solid var(--line);
+  margin-top: 100px;
+}
+
+.footer-inner {
+  width: min(var(--content-width), calc(100% - var(--page-gutter)));
+  margin: auto;
+  padding: 24px 0;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font: 11px var(--font-mono);
+}
+
+.footer-brand {
+  color: var(--ink);
+}

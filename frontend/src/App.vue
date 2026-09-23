@@ -1,5 +1,8 @@
 <template>
   <div class="app-shell">
+    <!-- 懒加载路由首次进入需要下载 chunk，用它填补这段无反馈的空白 -->
+    <RouteProgress />
+
     <!--
       管理后台是独立整屏控制台：由 AdminLayout 自己提供侧边栏与顶栏，
       因此这里不再套站点头部 / 页脚，避免出现"页面里还有一层网站外壳"。
@@ -28,6 +31,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import AppHeader from './components/AppHeader.vue'
+import RouteProgress from './components/RouteProgress.vue'
 
 const route = useRoute()
 

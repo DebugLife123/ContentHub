@@ -41,8 +41,13 @@
       <el-button class="button button-dark" @click="applyFilters">筛选</el-button>
     </div>
 
-    <div v-if="loading" class="empty-state">正在加载 Skill…</div>
-    <div v-else-if="!items.length" class="empty-state">没有符合条件的 Skill。</div>
+    <!-- 三态分离：加载 / 失败可重试 / 空（区分「没有数据」与「筛选后无结果」） -->
+    <AppSkeleton v-if="loading" variant="cards" :count="6" />
+
+    <AppError v-else-if="error" :message="error" :retrying="loading" @retry="load" />
+
+    <AppEmpty v-else-if="!items.length" :filtered="hasFilter" @reset="resetFilters" />
+
     <div v-else class="skill-grid">
       <article v-for="item in items" :key="item.id" class="skill-card" @click="open(item.id)">
         <div class="skill-head">
@@ -73,15 +78,19 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDate, formatStars, listSkillCategories, pageSkills } from '../../api/skill'
 import type { SkillCategory, SkillItem } from '../../api/types'
+import AppSkeleton from '../../components/state/AppSkeleton.vue'
+import AppEmpty from '../../components/state/AppEmpty.vue'
+import AppError from '../../components/state/AppError.vue'
 
 const route = useRoute()
 const router = useRouter()
 
 const loading = ref(true)
+const error = ref('')
 const items = ref<SkillItem[]>([])
 const total = ref(0)
 const categories = ref<SkillCategory[]>([])
@@ -92,8 +101,14 @@ const filters = reactive({
   sort: 'stars' as 'stars' | 'updated' | 'name',
 })
 
+/** 有筛选条件时，空结果要归因到「条件太窄」而不是「这里本来就没东西」 */
+const hasFilter = computed(
+  () => filters.categoryId !== null || filters.keyword.trim() !== '' || filters.sort !== 'stars',
+)
+
 async function load() {
   loading.value = true
+  error.value = ''
   try {
     const res = await pageSkills({
       categoryId: filters.categoryId,
@@ -103,13 +118,28 @@ async function load() {
     if (res.data.success) {
       items.value = res.data.data.list
       total.value = res.data.data.total
+    } else {
+      items.value = []
+      total.value = 0
+      error.value = res.data.message || '服务端没有返回数据。'
     }
   } catch {
+    // 失败时保留「加载失败」这个事实，不要伪装成空列表
     items.value = []
     total.value = 0
+    error.value = '没能取到 Skill 列表，请检查网络后重试。'
   } finally {
     loading.value = false
   }
+}
+
+/** 空状态里的「清空筛选条件」 */
+function resetFilters() {
+  filters.categoryId = null
+  filters.keyword = ''
+  filters.sort = 'stars'
+  router.replace({ path: '/skills', query: {} })
+  load()
 }
 
 function applyFilters() {

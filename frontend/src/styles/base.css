@@ -1,0 +1,70 @@
+/* ==========================================================================
+   ContentHub · 基线样式
+   --------------------------------------------------------------------------
+   全局 reset、排版基线与通用动效工具类。
+   页面级样式请写在各 SFC 的 <style scoped> 里，不要往这里加。
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+/* -------------------------------------------------------- 页面级标题排版
+   首页 / 登录注册 / 创作者工作台 / 内容详情 四类页面共用同一套大标题规格，
+   因此放在基线里，避免在多个页面文件里各写一遍。 */
+.hero h1,
+.auth-intro h1,
+.dashboard-head h1,
+.detail-page h1 {
+  font-size: clamp(45px, 6.2vw, 88px);
+  line-height: 1.04;
+  letter-spacing: -0.075em;
+  margin: 0;
+  font-weight: 700;
+}
+
+/* 标题里用 <em> 做衬线强调（如「让知识拥有<b>持续被发现</b>的时间」） */
+.hero h1 em,
+.auth-intro h1 em,
+.dashboard-head h1 em,
+.detail-page h1 em,
+h2 em {
+  font-family: var(--font-serif);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------ 入场动效工具类 */
+.reveal-up {
+  animation: rise 0.8s both;
+}
+
+.delay-1 {
+  animation-delay: 0.12s;
+}
+
+.delay-2 {
+  animation-delay: 0.25s;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

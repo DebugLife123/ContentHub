@@ -1,0 +1,371 @@
+/* ==========================================================================
+   ContentHub · 首页（Hero / 内容网格 / 创作者横幅）
+   ========================================================================== */
+
+/* --------------------------------------------------------------------- Hero */
+.hero {
+  min-height: 660px;
+  position: relative;
+  padding: 100px 0 80px;
+}
+
+.hero-copy {
+  width: 57%;
+  position: relative;
+  z-index: 2;
+}
+
+.eyebrow {
+  font: 11px var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 0 0 21px;
+}
+
+.hero-subtitle {
+  width: 390px;
+  color: #67645d;
+  font-size: 15px;
+  line-height: 1.9;
+  margin: 30px 0;
+}
+
+.hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+/* ------------------------------------------------------------------- 按钮 */
+.button {
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  text-decoration: none !important;
+}
+
+.button-dark {
+  background: var(--ink) !important;
+  color: white !important;
+  padding: 15px 20px !important;
+  font: 500 12px var(--font-mono) !important;
+}
+
+.button-dark span {
+  color: var(--orange);
+  margin-left: 18px;
+}
+
+.text-link {
+  font: 11px var(--font-mono);
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 4px;
+}
+
+.text-link span {
+  margin-left: 12px;
+}
+
+/* ------------------------------------------------------------- Hero 右侧视觉 */
+.hero-note {
+  position: absolute;
+  left: 57%;
+  top: 107px;
+  display: flex;
+  gap: 26px;
+  color: var(--muted);
+  font: 10px var(--font-mono);
+  line-height: 1.7;
+}
+
+.note-index {
+  color: var(--ink);
+}
+
+.hero-visual {
+  position: absolute;
+  right: -2%;
+  top: 170px;
+  width: 48%;
+  height: 445px;
+}
+
+.orbit {
+  position: absolute;
+  border: 1px solid rgba(23, 23, 23, 0.14);
+  border-radius: 50%;
+  transform: rotate(-25deg);
+}
+
+.orbit-one {
+  width: 470px;
+  height: 200px;
+  top: 85px;
+  left: -36px;
+}
+
+.orbit-two {
+  width: 500px;
+  height: 250px;
+  top: 42px;
+  left: -50px;
+  transform: rotate(25deg);
+}
+
+.visual-card {
+  position: absolute;
+}
+
+.card-main {
+  width: 300px;
+  height: 375px;
+  left: 100px;
+  top: 0;
+  background: #d8c6ad;
+  padding: 17px;
+  box-shadow: 24px 28px 0 rgba(23, 23, 23, 0.07);
+  transform: rotate(5deg);
+}
+
+.card-topline,
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  font: 9px var(--font-mono);
+}
+
+.card-art {
+  height: 270px;
+  margin: 15px 0;
+  background: var(--orange);
+  display: flex;
+  align-items: center;
+  padding: 28px;
+  color: var(--ink);
+  font-size: 31px;
+  font-weight: 700;
+  letter-spacing: -0.08em;
+  line-height: 1.05;
+}
+
+.card-art i {
+  font-family: var(--font-serif);
+  font-weight: 500;
+}
+
+.floating-stamp {
+  position: absolute;
+  right: 4px;
+  top: 18px;
+  width: 112px;
+  height: 112px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  transform: rotate(13deg);
+  font: 10px var(--font-mono);
+  line-height: 1.25;
+  background: var(--lime);
+}
+
+.floating-stamp strong {
+  font-size: 15px;
+}
+
+.card-small {
+  right: 0;
+  bottom: 4px;
+  width: 150px;
+  height: 174px;
+  background: var(--lilac);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font: 15px var(--font-mono);
+  font-weight: 500;
+  line-height: 1;
+}
+
+.card-small b {
+  font-size: 28px;
+  font-weight: 400;
+}
+
+/* --------------------------------------------------------------- 内容网格 */
+.explore-section {
+  padding: 80px 0;
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 38px;
+}
+
+.section-heading h2,
+.creator-banner h2 {
+  font-size: 54px;
+  line-height: 1.02;
+  letter-spacing: -0.07em;
+  margin: 0;
+}
+
+.heading-aside {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--muted);
+  margin: 0 80px 6px 0;
+}
+
+.category-row {
+  display: flex;
+  gap: 24px;
+  overflow: auto;
+  padding: 25px 0 34px;
+  font: 11px var(--font-mono);
+  color: var(--muted);
+}
+
+.category-row span {
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.category-row .active {
+  color: var(--ink);
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 5px;
+}
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.content-card {
+  cursor: pointer;
+}
+
+.content-cover {
+  height: 260px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+.content-card:hover .content-cover {
+  transform: translateY(-7px);
+}
+
+.theme-orange {
+  background: var(--orange);
+}
+
+.theme-lilac {
+  background: var(--lilac);
+}
+
+.theme-ink {
+  background: var(--ink);
+  color: #fff;
+}
+
+.cover-type {
+  font: 10px var(--font-mono);
+}
+
+.content-cover strong {
+  white-space: pre-line;
+  font-size: 48px;
+  line-height: 0.88;
+  letter-spacing: -0.08em;
+}
+
+.cover-arrow {
+  position: absolute;
+  right: 17px;
+  bottom: 15px;
+  font-size: 24px;
+}
+
+.content-meta,
+.content-foot {
+  display: flex;
+  justify-content: space-between;
+  font: 10px var(--font-mono);
+  color: var(--muted);
+  padding-top: 14px;
+}
+
+.content-card h3 {
+  font-size: 19px;
+  margin: 16px 0 7px;
+  letter-spacing: -0.04em;
+}
+
+.content-card p {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.content-foot {
+  border-top: 1px solid var(--line);
+  margin-top: 20px;
+  padding-top: 13px;
+  color: var(--ink);
+}
+
+/* ------------------------------------------------------------- 创作者横幅 */
+.creator-banner {
+  margin-top: 40px;
+  background: var(--lime);
+  padding: 62px 70px;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 50px;
+}
+
+.creator-banner h2 {
+  font-size: 58px;
+}
+
+.creator-banner > p {
+  max-width: 280px;
+  font-size: 14px;
+  line-height: 1.8;
+  margin: 0 0 4px;
+}
+
+.circle-arrow {
+  width: 65px;
+  height: 65px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-size: 24px;
+  text-decoration: none;
+  transition: var(--dur-slow) var(--ease-out);
+}
+
+.circle-arrow:hover {
+  background: var(--ink);
+  color: #fff;
+}
