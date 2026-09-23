@@ -57,42 +57,14 @@
   box-shadow: 8px -4px 0 var(--lime);
 }
 
-.main-nav {
-  display: flex;
-  gap: 32px;
-  margin-left: 60px;
-}
-
-.main-nav a,
-.login-link {
-  font: 500 12px var(--font-mono);
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.main-nav a:hover,
-.main-nav .router-link-active {
-  color: var(--ink);
-}
+/* 导航链接、用户菜单、注册/退出按钮的样式全部由 AppHeader.vue 自己维护：
+   它们只在这一个组件里出现，留在全局样式里既会重复又难追踪。 */
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 24px;
-}
-
-.creator-cta {
-  background: var(--ink);
-  color: #fff;
-  text-decoration: none;
-  padding: 13px 17px;
-  font: 500 11px var(--font-mono);
-}
-
-.creator-cta span {
-  margin-left: 16px;
-  color: var(--orange);
+  gap: 20px;
+  flex: none;
 }
 
 /* -------------------------------------------------------------------- 主体 */
@@ -106,16 +78,19 @@
   margin-top: 100px;
 }
 
+/* 页脚里有中文，用 UI 字体栈；等宽字体只留给纯拉丁的品牌串 */
 .footer-inner {
   width: min(var(--content-width), calc(100% - var(--page-gutter)));
   margin: auto;
-  padding: 24px 0;
+  padding: 26px 0;
   display: flex;
   justify-content: space-between;
   color: var(--muted);
-  font: 11px var(--font-mono);
+  font: 400 13px var(--font-ui);
 }
 
 .footer-brand {
   color: var(--ink);
+  font: 500 12px var(--font-mono);
+  letter-spacing: 0.04em;
 }

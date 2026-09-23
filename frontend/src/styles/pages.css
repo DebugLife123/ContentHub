@@ -55,14 +55,14 @@
 }
 
 .auth-hint {
-  font: 10px var(--font-mono);
+  font: 400 13px var(--font-ui);
   color: var(--muted);
   margin: 25px 0 0;
 }
 
 .error-text {
   color: #c54a32;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 /* ---------------------------------------------------------- 创作者工作台 */
@@ -98,7 +98,7 @@
 .metric-card span,
 .metric-card small {
   display: block;
-  font: 10px var(--font-mono);
+  font: 500 12px var(--font-ui);
   color: var(--muted);
 }
 
@@ -137,7 +137,7 @@
 }
 
 .panel-head span {
-  font: 10px var(--font-mono);
+  font: 500 12px var(--font-ui);
   color: var(--muted);
 }
 
@@ -160,7 +160,7 @@
 .chart-labels {
   display: flex;
   justify-content: space-between;
-  font: 9px var(--font-mono);
+  font: 500 11px var(--font-mono);
   color: var(--muted);
   padding-top: 10px;
 }
@@ -193,18 +193,17 @@
 }
 
 .recent-item strong {
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 .recent-item span {
-  font: 9px var(--font-mono);
+  font: 400 12px var(--font-ui);
   color: var(--muted);
   margin-top: 7px;
 }
 
 .recent-item b {
-  font: 11px var(--font-mono);
-  font-weight: 400;
+  font: 500 12.5px var(--font-mono);
 }
 
 /* -------------------------------------------------------- 内容详情（旧版） */
@@ -213,9 +212,14 @@
 }
 
 .back-link {
-  font: 11px var(--font-mono);
+  font: 500 13px var(--font-ui);
   color: var(--muted);
   text-decoration: none;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+.back-link:hover {
+  color: var(--ink);
 }
 
 .detail-layout {

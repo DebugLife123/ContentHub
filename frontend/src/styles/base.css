@@ -18,6 +18,44 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-ui);
+  /* 显式声明基线字号（等同于浏览器默认 16px）。
+     小号文字的问题不在基线，而在那些写死 9~12px 的等宽微标签，
+     它们已在各自规则里调大。 */
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* -------------------------------------------------------- 交互反馈基线
+   所有可点元素共享同一条过渡曲线与时长，避免"有的地方有动画、有的地方没有"。
+   用 :where() 保持 0 特异性，组件自己写的 transition 仍然可以覆盖它。 */
+:where(a, button, [role='button'], summary) {
+  transition-property: color, background-color, border-color, opacity, transform, box-shadow;
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-out);
+}
+
+/* 键盘 Tab 时的焦点环。
+   :focus-visible 的语义是"只有键盘操作才显示"，鼠标点击不会出现，不影响视觉。 */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* 尊重系统的"减弱动效"设置 */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* -------------------------------------------------------- 页面级标题排版

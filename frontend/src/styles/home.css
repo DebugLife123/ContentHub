@@ -23,9 +23,9 @@
 }
 
 .hero-subtitle {
-  width: 390px;
+  width: 410px;
   color: #67645d;
-  font-size: 15px;
+  font-size: 16.5px;
   line-height: 1.9;
   margin: 30px 0;
 }
@@ -219,24 +219,31 @@
 }
 
 .heading-aside {
-  font-size: 14px;
+  font-size: 15.5px;
   line-height: 1.8;
   color: var(--muted);
   margin: 0 80px 6px 0;
 }
 
+/* 栏目名是中文，必须走 UI 字体栈。
+   等宽字体没有中文字形，会回落到系统等宽中文（多为宋体），看起来又小又细。 */
 .category-row {
   display: flex;
-  gap: 24px;
+  gap: 26px;
   overflow: auto;
   padding: 25px 0 34px;
-  font: 11px var(--font-mono);
+  font: 500 13.5px var(--font-ui);
   color: var(--muted);
 }
 
 .category-row span {
   white-space: nowrap;
   cursor: pointer;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+.category-row span:hover {
+  color: var(--ink);
 }
 
 .category-row .active {
@@ -300,26 +307,32 @@
   font-size: 24px;
 }
 
+/* 卡片上的元信息是中文（"次阅读" / "免费阅读"），用 UI 字体栈并放大 */
 .content-meta,
 .content-foot {
   display: flex;
   justify-content: space-between;
-  font: 10px var(--font-mono);
+  font: 500 12.5px var(--font-ui);
   color: var(--muted);
   padding-top: 14px;
 }
 
 .content-card h3 {
-  font-size: 19px;
-  margin: 16px 0 7px;
+  font-size: 20px;
+  margin: 16px 0 8px;
   letter-spacing: -0.04em;
+  transition: color var(--dur-base) var(--ease-out);
+}
+
+.content-card:hover h3 {
+  color: var(--art-accent, #c14e1d);
 }
 
 .content-card p {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--muted);
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .content-foot {
@@ -345,8 +358,8 @@
 }
 
 .creator-banner > p {
-  max-width: 280px;
-  font-size: 14px;
+  max-width: 300px;
+  font-size: 15.5px;
   line-height: 1.8;
   margin: 0 0 4px;
 }
@@ -362,10 +375,12 @@
   color: var(--ink);
   font-size: 24px;
   text-decoration: none;
-  transition: var(--dur-slow) var(--ease-out);
+  transition: background var(--dur-base) var(--ease-out), color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-out);
 }
 
 .circle-arrow:hover {
   background: var(--ink);
   color: #fff;
+  transform: scale(1.06);
 }
